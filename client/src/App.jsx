@@ -3,6 +3,7 @@ import "./App.css";
 import Dashboard from "./pages/Dashboard";
 import AgentGenerator from "./pages/AgentGenerator";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import AgentChat from "./pages/AgentChat";
 import {
   createBrowserRouter,
   RouterProvider,
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path:"agents", element: <AgentGenerator /> },
+      { path:"agents/:name", element: <AgentChat /> },
       { path:"knowledge", element: <KnowledgeBase /> }
     ],
   },

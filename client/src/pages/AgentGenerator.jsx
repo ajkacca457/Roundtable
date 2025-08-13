@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 
 const AgentGenerator = () => {
   // Mock data for agents
@@ -6,12 +7,14 @@ const AgentGenerator = () => {
     {
       id: 1,
       name: "Growth Coach",
+      nameSlug:"growth-coach",
       description: "Helps with personal and professional growth strategies.",
       tasks: ["Weekly progress review", "Goal setting", "Motivation tips"],
     },
     {
       id: 2,
       name: "Research Assistant",
+      nameSlug:"research-assistant",
       description: "Finds and summarizes information for projects.",
       tasks: ["Market research", "Competitor analysis", "Summarizing reports"],
     },
@@ -47,7 +50,10 @@ const AgentGenerator = () => {
       {/* Agent List */}
       <div className="grid md:grid-cols-2 gap-6 mb-10">
         {agents.map((agent) => (
-          <div key={agent.id} className="card bg-base-100 shadow-md border border-base-300">
+          <div
+            key={agent.id}
+            className="card bg-base-100 shadow-md border border-base-300"
+          >
             <div className="card-body">
               <h2 className="card-title">{agent.name}</h2>
               <p className="text-sm text-gray-500">{agent.description}</p>
@@ -57,12 +63,12 @@ const AgentGenerator = () => {
                 ))}
               </ul>
               <div className="card-actions justify-end mt-4">
-                <a
-                  href={`/chat/${agent.id}`}
+                <Link
+                  to={`/dashboard/agents/${agent.nameSlug}`}
                   className="btn btn-primary btn-sm"
                 >
                   Chat
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -78,21 +84,27 @@ const AgentGenerator = () => {
               type="text"
               placeholder="Agent Name"
               value={newAgent.name}
-              onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
+              onChange={(e) =>
+                setNewAgent({ ...newAgent, name: e.target.value })
+              }
               className="input input-bordered w-full"
               required
             />
             <textarea
               placeholder="Description"
               value={newAgent.description}
-              onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })}
+              onChange={(e) =>
+                setNewAgent({ ...newAgent, description: e.target.value })
+              }
               className="textarea textarea-bordered w-full"
             />
             <input
               type="text"
               placeholder="Tasks (comma separated)"
               value={newAgent.tasks}
-              onChange={(e) => setNewAgent({ ...newAgent, tasks: e.target.value })}
+              onChange={(e) =>
+                setNewAgent({ ...newAgent, tasks: e.target.value })
+              }
               className="input input-bordered w-full"
             />
             <div className="flex justify-end">
