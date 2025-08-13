@@ -1,6 +1,8 @@
 import { useState } from "react";
 import "./App.css";
 import Dashboard from "./pages/Dashboard";
+import AgentGenerator from "./pages/AgentGenerator";
+import KnowledgeBase from "./pages/KnowledgeBase";
 import {
   createBrowserRouter,
   RouterProvider,
@@ -17,7 +19,11 @@ const router = createBrowserRouter([
   {
     path: "/dashboard",
     element: <MainLayout />,
-    children: [{ index: true, element: <Dashboard /> }],
+    children: [
+      { index: true, element: <Dashboard /> },
+      { path:"agents", element: <AgentGenerator /> },
+      { path:"knowledge", element: <KnowledgeBase /> }
+    ],
   },
 ]);
 
