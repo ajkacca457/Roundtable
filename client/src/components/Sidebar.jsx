@@ -6,6 +6,7 @@ const Sidebar = () => {
   const links = [
     { name: "Dashboard", path: "/dashboard" },
     { name: "Agents", path: "/dashboard/agents" },
+    { name: "Crew Chat", path: "/dashboard/crew-chat" },
     { name: "Knowledge Base", path: "/dashboard/knowledge" },
   ];
 
@@ -25,7 +26,9 @@ const Sidebar = () => {
         ))}
       </nav>
       <div className="p-4">
-        <button className="btn btn-primary btn-block">Add New Agent</button>
+        <Link to="/dashboard/agents" className="btn btn-primary btn-block">
+          Add New Agent
+        </Link>
       </div>
     </aside>
   );

@@ -100,6 +100,25 @@ def delete_agent(agent_id: int, db: Session = Depends(get_db)):
     refresh_registry()
     return None  # 204 No Content means no body returned
 
+# --------- Crew Chat Endpoint ---------
+@app.post("/crew-chat")
+def crew_chat(payload: ChatRequest, db: Session = Depends(get_db)):
+    # Fetch all agents
+    agents = db.query(AgentRow).all()
+    if not agents:
+        return {"messages": [{"sender": "System", "text": "No agents available."}]}
+
+    messages = []
+    context = payload.message  # start with user message
+
+    for agent in agents:
+        reply = run_chat(db, agent.id, context)
+        messages.append({"sender": agent.name, "text": reply})
+        # Update context so next agent sees previous messages
+        context += f"\n{agent.name}: {reply}"
+
+    return {"messages": messages}
+
 
 # --------- Knowledge Base Endpoints ---------
 @app.get("/knowledge", response_model=list[KBOut])
