@@ -1,46 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import AgentCard from "../components/AgentCard";
+
+const API_URL = "http://127.0.0.1:8000"; // your FastAPI backend
 
 const AgentGenerator = () => {
-  // Mock data for agents
-  const [agents, setAgents] = useState([
-    {
-      id: 1,
-      name: "Growth Coach",
-      nameSlug:"growth-coach",
-      description: "Helps with personal and professional growth strategies.",
-      tasks: ["Weekly progress review", "Goal setting", "Motivation tips"],
-    },
-    {
-      id: 2,
-      name: "Research Assistant",
-      nameSlug:"research-assistant",
-      description: "Finds and summarizes information for projects.",
-      tasks: ["Market research", "Competitor analysis", "Summarizing reports"],
-    },
-  ]);
-
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [newAgent, setNewAgent] = useState({
     name: "",
     description: "",
     tasks: "",
+    goal: "",
+    backstory: "",
   });
 
-  const handleAddAgent = (e) => {
+  // Fetch agents on mount
+  useEffect(() => {
+    fetch(`${API_URL}/agents`)
+      .then((res) => res.json())
+      .then((data) => {
+        setAgents(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch agents:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  // Create new agent
+  const handleAddAgent = async (e) => {
     e.preventDefault();
     if (!newAgent.name.trim()) return;
 
-    setAgents([
-      ...agents,
-      {
-        id: Date.now(),
-        name: newAgent.name,
-        description: newAgent.description,
-        tasks: newAgent.tasks.split(",").map((t) => t.trim()),
-      },
-    ]);
+    const payload = {
+      name: newAgent.name,
+      description: newAgent.description,
+      tasks: newAgent.tasks.split(",").map((t) => t.trim()),
+      goal: newAgent.goal,
+      backstory: newAgent.backstory,
+    };
 
-    setNewAgent({ name: "", description: "", tasks: "" });
+    try {
+      const res = await fetch(`${API_URL}/agents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const createdAgent = await res.json();
+      setAgents((prev) => [...prev, createdAgent]);
+      setNewAgent({ name: "", description: "", tasks: "" });
+    } catch (err) {
+      console.error("Error creating agent:", err);
+    }
+  };
+
+  // 🔥 Delete agent
+  const handleDeleteAgent = async (id) => {
+    try {
+      await fetch(`${API_URL}/agents/${id}`, {
+        method: "DELETE",
+      });
+      setAgents((prev) => prev.filter((agent) => agent.id !== id));
+    } catch (err) {
+      console.error("Error deleting agent:", err);
+    }
   };
 
   return (
@@ -48,32 +74,19 @@ const AgentGenerator = () => {
       <h1 className="text-2xl font-bold mb-6">Agent Management</h1>
 
       {/* Agent List */}
-      <div className="grid md:grid-cols-2 gap-6 mb-10">
-        {agents.map((agent) => (
-          <div
-            key={agent.id}
-            className="card bg-base-100 shadow-md border border-base-300"
-          >
-            <div className="card-body">
-              <h2 className="card-title">{agent.name}</h2>
-              <p className="text-sm text-gray-500">{agent.description}</p>
-              <ul className="mt-2 list-disc list-inside text-sm">
-                {agent.tasks.map((task, i) => (
-                  <li key={i}>{task}</li>
-                ))}
-              </ul>
-              <div className="card-actions justify-end mt-4">
-                <Link
-                  to={`/dashboard/agents/${agent.nameSlug}`}
-                  className="btn btn-primary btn-sm"
-                >
-                  Chat
-                </Link>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <p>Loading agents...</p>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-6 mb-10">
+          {agents.map((agent) => (
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              onDelete={handleDeleteAgent} // ✅ pass function to AgentCard
+            />
+          ))}
+        </div>
+      )}
 
       {/* Create New Agent Form */}
       <div className="card bg-base-100 shadow-lg border border-base-300">
@@ -95,6 +108,22 @@ const AgentGenerator = () => {
               value={newAgent.description}
               onChange={(e) =>
                 setNewAgent({ ...newAgent, description: e.target.value })
+              }
+              className="textarea textarea-bordered w-full"
+            />
+            <textarea
+              placeholder="Goal"
+              value={newAgent.goal}
+              onChange={(e) =>
+                setNewAgent({ ...newAgent, goal: e.target.value })
+              }
+              className="textarea textarea-bordered w-full"
+            />
+            <textarea
+              placeholder="Backstory"
+              value={newAgent.backstory}
+              onChange={(e) =>
+                setNewAgent({ ...newAgent, backstory: e.target.value })
               }
               className="textarea textarea-bordered w-full"
             />

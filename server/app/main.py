@@ -32,7 +32,9 @@ def list_agents(db: Session = Depends(get_db)):
             id=r.id,
             name=r.name,
             description=r.description,
-            tasks=[t.strip() for t in (r.tasks or "").split(",") if t.strip()]
+            tasks=[t.strip() for t in (r.tasks or "").split(",") if t.strip()],
+            goal=r.goal or "",
+            backstory=r.backstory or ""
         )
         for r in rows
     ]
@@ -40,20 +42,40 @@ def list_agents(db: Session = Depends(get_db)):
 @app.post("/agents", response_model=AgentOut)
 def create_agent(payload: AgentCreate, db: Session = Depends(get_db)):
     tasks_str = ",".join(payload.tasks or [])
-    row = AgentRow(name=payload.name, description=payload.description or "", tasks=tasks_str)
+    row = AgentRow(
+        name=payload.name,
+        description=payload.description or "",
+        tasks=tasks_str,
+        goal=payload.goal or "",
+        backstory=payload.backstory or ""
+    )
     db.add(row)
     db.commit()
     db.refresh(row)
     refresh_registry()
-    return AgentOut(id=row.id, name=row.name, description=row.description, tasks=payload.tasks or [])
+    return AgentOut(
+        id=row.id,
+        name=row.name,
+        description=row.description,
+        tasks=payload.tasks or [],
+        goal=row.goal,
+        backstory=row.backstory
+    )
 
 @app.get("/agents/{agent_id}", response_model=AgentOut)
 def get_agent(agent_id: int, db: Session = Depends(get_db)):
     r = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
     if not r:
         raise HTTPException(404, "Agent not found")
-    return AgentOut(id=r.id, name=r.name, description=r.description,
-                    tasks=[t.strip() for t in (r.tasks or "").split(",") if t.strip()])
+    
+    return AgentOut(
+        id=r.id,
+        name=r.name,
+        description=r.description,
+        tasks=[t.strip() for t in (r.tasks or "").split(",") if t.strip()],
+        goal=r.goal or "",
+        backstory=r.backstory or ""
+    )
 
 @app.post("/agents/{agent_id}/chat", response_model=ChatResponse)
 def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
@@ -65,6 +87,19 @@ def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(g
         raise HTTPException(404, str(e))
     except Exception as e:
         raise HTTPException(500, f"Agent error: {e}")
+    
+
+@app.delete("/agents/{agent_id}", status_code=204)
+def delete_agent(agent_id: int, db: Session = Depends(get_db)):
+    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
+    if not row:
+        raise HTTPException(404, "Agent not found")
+    
+    db.delete(row)
+    db.commit()
+    refresh_registry()
+    return None  # 204 No Content means no body returned
+
 
 # --------- Knowledge Base Endpoints ---------
 @app.get("/knowledge", response_model=list[KBOut])

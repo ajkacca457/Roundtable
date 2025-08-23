@@ -1,36 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 
-const AgentChat = () => {
-  const { name } = useParams(); // Get agent name from URL
-  const [messages, setMessages] = useState([
-    { sender: "agent", text: `Hello! I'm ${name}, here to help you.` },
-  ]);
-  const [input, setInput] = useState("");
+const API_URL = "http://127.0.0.1:8000";
 
-  const sendMessage = () => {
+const AgentChat = () => {
+  const { id } = useParams(); // Agent ID from URL
+
+  console.log("Agent ID from URL:", id);
+
+  const [agent, setAgent] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef(null);
+
+  // Scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Fetch agent info
+  useEffect(() => {
+    fetch(`${API_URL}/agents/${id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setAgent(data);
+        setMessages([{ sender: "agent", text: `Hello! I'm ${data.name}, how can I help you?` }]);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load agent:", err);
+        setLoading(false);
+      });
+  }, [id]);
+
+  // Scroll when messages change
+  useEffect(scrollToBottom, [messages]);
+
+  // Send message to backend
+  const sendMessage = async () => {
     if (!input.trim()) return;
 
-    // Add user message
-    const newMessages = [...messages, { sender: "user", text: input }];
-    setMessages(newMessages);
-
-    // Simulate agent reply
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { sender: "agent", text: "Got it! Let me work on that for you." },
-      ]);
-    }, 800);
-
+    const userMessage = { sender: "user", text: input };
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
+
+    try {
+      const res = await fetch(`${API_URL}/agents/${id}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input }),
+      });
+      const data = await res.json();
+      setMessages((prev) => [...prev, { sender: "agent", text: data.reply }]);
+    } catch (err) {
+      console.error("Error chatting with agent:", err);
+      setMessages((prev) => [...prev, { sender: "agent", text: "Sorry, something went wrong." }]);
+    }
   };
+
+  if (loading) return <p className="p-4">Loading agent...</p>;
+  if (!agent) return <p className="p-4 text-red-500">Agent not found.</p>;
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-base-200">
       {/* Header */}
       <div className="p-4 shadow bg-base-100 flex items-center justify-between">
-        <h2 className="text-xl font-bold">{name} — Chat</h2>
+        <h2 className="text-xl font-bold">{agent.name} — Chat</h2>
         <span className="badge badge-success">Online</span>
       </div>
 
@@ -39,25 +75,22 @@ const AgentChat = () => {
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`chat ${
-              msg.sender === "user" ? "chat-end" : "chat-start"
-            }`}
+            className={`chat ${msg.sender === "user" ? "chat-end" : "chat-start"}`}
           >
             <div
               className={`chat-bubble ${
-                msg.sender === "user"
-                  ? "chat-bubble-primary"
-                  : "chat-bubble-secondary"
+                msg.sender === "user" ? "chat-bubble-primary" : "chat-bubble-secondary"
               }`}
             >
               {msg.text}
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-base-100 border-t border-base-300 flex gap-2">
+      <div className="p-4 bg-base-100 border-t border-base-300 flex gap-2 sticky bottom-0">
         <input
           type="text"
           placeholder="Type your message..."
