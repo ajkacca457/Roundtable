@@ -6,8 +6,6 @@ const API_URL = "http://127.0.0.1:8000";
 const AgentChat = () => {
   const { id } = useParams(); // Agent ID from URL
 
-  console.log("Agent ID from URL:", id);
-
   const [agent, setAgent] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -25,7 +23,13 @@ const AgentChat = () => {
       .then((res) => res.json())
       .then((data) => {
         setAgent(data);
-        setMessages([{ sender: "agent", text: `Hello! I'm ${data.name}, how can I help you?` }]);
+        setMessages([
+          {
+            sender: "agent",
+            text: `Hello! I'm ${data.name}, how can I help you?`,
+            source_percent: { internal: 100, internet: 0 }, // default
+          },
+        ]);
         setLoading(false);
       })
       .catch((err) => {
@@ -52,10 +56,21 @@ const AgentChat = () => {
         body: JSON.stringify({ message: input }),
       });
       const data = await res.json();
-      setMessages((prev) => [...prev, { sender: "agent", text: data.reply }]);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "agent",
+          text: data.reply,
+          source_percent: data.source_percent || { internal: 100, internet: 0 },
+        },
+      ]);
     } catch (err) {
       console.error("Error chatting with agent:", err);
-      setMessages((prev) => [...prev, { sender: "agent", text: "Sorry, something went wrong." }]);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "agent", text: "Sorry, something went wrong.", source_percent: { internal: 0, internet: 0 } },
+      ]);
     }
   };
 
@@ -82,7 +97,14 @@ const AgentChat = () => {
                 msg.sender === "user" ? "chat-bubble-primary" : "chat-bubble-secondary"
               }`}
             >
-              {msg.text}
+              <div className="flex justify-between items-start">
+                <span>{msg.text}</span>
+                {msg.sender === "agent" && msg.source_percent && (
+                  <span className="ml-2 text-xs text-white bg-blue-600 rounded-2xl px-2 py-2">
+                    {`Internal: ${msg.source_percent.internal}% | Internet: ${msg.source_percent.internet}%`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         ))}

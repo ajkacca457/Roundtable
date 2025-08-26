@@ -26,6 +26,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    source_percent: dict 
 
 # ---------- Knowledge Base ----------
 class KBCreate(BaseModel):

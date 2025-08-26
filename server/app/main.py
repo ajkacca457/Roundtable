@@ -1,13 +1,16 @@
+import os
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
 from .models import AgentRow
 from .schemas import AgentCreate, AgentOut, ChatRequest, ChatResponse, KBCreate, KBOut
-from .agents_service import get_agent_instance, refresh_registry
-from .crew_runner import run_chat
+from .agents_service import get_agent_instance, refresh_registry,_llm
+# from .crew_runner import run_chat
+from .crew_runner import run_chat_with_search
+
 from .kb_service import list_kb, add_kb
 
 Base.metadata.create_all(bind=engine)
@@ -77,17 +80,31 @@ def get_agent(agent_id: int, db: Session = Depends(get_db)):
         backstory=r.backstory or ""
     )
 
+# @app.post("/agents/{agent_id}/chat", response_model=ChatResponse)
+# def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
+#     try:
+#         _ = get_agent_instance(db, agent_id)
+#         reply = run_chat(db, agent_id, payload.message)
+#         return ChatResponse(reply=reply)
+#     except ValueError as e:
+#         raise HTTPException(404, str(e))
+#     except Exception as e:
+#         raise HTTPException(500, f"Agent error: {e}")
+
+
+from fastapi import Body
+import logging
+
 @app.post("/agents/{agent_id}/chat", response_model=ChatResponse)
 def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
     try:
         _ = get_agent_instance(db, agent_id)
-        reply = run_chat(db, agent_id, payload.message)
-        return ChatResponse(reply=reply)
+        result = run_chat_with_search(db, agent_id, payload.message)
+        return ChatResponse(**result)  # unpack dict into the schema
     except ValueError as e:
         raise HTTPException(404, str(e))
     except Exception as e:
         raise HTTPException(500, f"Agent error: {e}")
-    
 
 @app.delete("/agents/{agent_id}", status_code=204)
 def delete_agent(agent_id: int, db: Session = Depends(get_db)):
@@ -109,13 +126,17 @@ def crew_chat(payload: ChatRequest, db: Session = Depends(get_db)):
         return {"messages": [{"sender": "System", "text": "No agents available."}]}
 
     messages = []
-    context = payload.message  # start with user message
+    # Initialize conversation context with user's message
+    conversation_context = f"User: {payload.message}"
 
+    # Each agent replies in sequence
     for agent in agents:
-        reply = run_chat(db, agent.id, context)
+        # Pass the current conversation context to the agent
+        reply = run_chat(db, agent.id, conversation_context)
+        # Record the agent's reply
         messages.append({"sender": agent.name, "text": reply})
-        # Update context so next agent sees previous messages
-        context += f"\n{agent.name}: {reply}"
+        # Update context so the next agent sees previous replies
+        conversation_context += f"\n{agent.name}: {reply}"
 
     return {"messages": messages}
 
@@ -134,6 +155,41 @@ def add_kb_item(payload: KBCreate, db: Session = Depends(get_db)):
     entry = add_kb(db, payload.title, payload.content, payload.tags or [])
     return KBOut(id=entry.id, title=entry.title, content=entry.content,
                  tags=[t for t in (entry.tags or "").split(",") if t])
+
+
+@app.get("/debug/ping-llm")
+def ping_llm():
+    try:
+        llm = _llm()
+        response = llm.invoke("Hello from Azure OpenAI, can you confirm?")
+        return {"status": "ok", "reply": str(response)}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+    
+
+@app.get("/debug-env")
+def debug_env():
+    return {
+        "provider": os.getenv("LLM_PROVIDER"),
+        "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
+        "deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        "api_version": os.getenv("AZURE_OPENAI_API_VERSION"),
+        "key_exists": bool(os.getenv("AZURE_OPENAI_API_KEY")),
+    }
+
+
+@app.post("/ping-llm")
+def ping_llm(message: str = Body(..., embed=True)):
+    try:
+        llm = _llm()  # use your llm factory
+        response = llm.invoke(message)
+        return {
+            "status": "ok",
+            "provider": os.getenv("LLM_PROVIDER", "openai"),
+            "reply": str(response),
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
