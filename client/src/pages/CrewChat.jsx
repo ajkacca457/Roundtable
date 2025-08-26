@@ -10,8 +10,7 @@ const CrewChatPage = () => {
     // Add user message
     setMessages((prev) => [...prev, { sender: "You", text: input }]);
 
-    const API_URL = import.meta.env.API_URL || "http://127.0.0.1:8000";
-
+    const API_URL = "https://aikacrew.onrender.com";
     try {
       const res = await fetch(`${API_URL}/crew-chat`, {
         method: "POST",
@@ -31,8 +30,19 @@ const CrewChatPage = () => {
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-base-200">
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.map((msg, idx) => (
-          <div key={idx} className={`chat ${msg.sender === "You" ? "chat-end" : "chat-start"}`}>
-            <div className={`chat-bubble ${msg.sender === "You" ? "chat-bubble-primary" : "chat-bubble-secondary"}`}>
+          <div
+            key={idx}
+            className={`chat ${
+              msg.sender === "You" ? "chat-end" : "chat-start"
+            }`}
+          >
+            <div
+              className={`chat-bubble ${
+                msg.sender === "You"
+                  ? "chat-bubble-primary"
+                  : "chat-bubble-secondary"
+              }`}
+            >
               <strong>{msg.sender}:</strong> {msg.text}
             </div>
           </div>
@@ -48,7 +58,9 @@ const CrewChatPage = () => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
-        <button className="btn btn-primary" onClick={sendMessage}>Send</button>
+        <button className="btn btn-primary" onClick={sendMessage}>
+          Send
+        </button>
       </div>
     </div>
   );
