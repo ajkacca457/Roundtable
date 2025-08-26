@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 
-const API_URL = import.meta.env.API_URL || "http://127.0.0.1:8000";
+const API_URL = "https://aikacrew.onrender.com";
+// const API_URL = "http://127.0.0.1:8000";
 
 const AgentChat = () => {
   const { id } = useParams(); // Agent ID from URL
