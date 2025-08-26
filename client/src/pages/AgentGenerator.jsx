@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import AgentCard from "../components/AgentCard";
 
-const API_URL = "http://127.0.0.1:8000"; // your FastAPI backend
+const API_URL = import.meta.env.API_URL || "http://127.0.0.1:8000"; 
 
 const AgentGenerator = () => {
   const [agents, setAgents] = useState([]);
