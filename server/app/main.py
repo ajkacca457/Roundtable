@@ -132,7 +132,7 @@ def crew_chat(payload: ChatRequest, db: Session = Depends(get_db)):
     # Each agent replies in sequence
     for agent in agents:
         # Pass the current conversation context to the agent
-        reply = run_chat(db, agent.id, conversation_context)
+        reply = run_chat_with_search(db, agent.id, conversation_context)
         # Record the agent's reply
         messages.append({"sender": agent.name, "text": reply})
         # Update context so the next agent sees previous replies
