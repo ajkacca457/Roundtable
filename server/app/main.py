@@ -13,6 +13,9 @@ from .crew_runner import run_chat_with_search
 
 from .kb_service import list_kb, add_kb
 
+from app.vector_store import vector_store
+
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="CrewAI Backend", version="0.1.0")
@@ -80,31 +83,25 @@ def get_agent(agent_id: int, db: Session = Depends(get_db)):
         backstory=r.backstory or ""
     )
 
-# @app.post("/agents/{agent_id}/chat", response_model=ChatResponse)
-# def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
-#     try:
-#         _ = get_agent_instance(db, agent_id)
-#         reply = run_chat(db, agent_id, payload.message)
-#         return ChatResponse(reply=reply)
-#     except ValueError as e:
-#         raise HTTPException(404, str(e))
-#     except Exception as e:
-#         raise HTTPException(500, f"Agent error: {e}")
-
-
 from fastapi import Body
 import logging
 
 @app.post("/agents/{agent_id}/chat", response_model=ChatResponse)
 def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
     try:
+        # Ensure agent exists
         _ = get_agent_instance(db, agent_id)
-        result = run_chat_with_search(db, agent_id, payload.message)
-        return ChatResponse(**result)  # unpack dict into the schema
+
+        # Run chat using CrewAI + vector memory + Google search
+        result = run_chat_with_search(db, agent_id, payload.message, use_search=True)
+
+        # Return result in schema
+        return ChatResponse(**result)
+
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(500, f"Agent error: {e}")
+        raise HTTPException(status_code=500, detail=f"Agent error: {e}")
 
 @app.delete("/agents/{agent_id}", status_code=204)
 def delete_agent(agent_id: int, db: Session = Depends(get_db)):
@@ -140,6 +137,26 @@ def crew_chat(payload: ChatRequest, db: Session = Depends(get_db)):
 
     return {"messages": messages}
 
+@app.get("/agents/{agent_id}/history")
+def get_chat_history(agent_id: int, db: Session = Depends(get_db)):
+    # Verify agent exists
+    try:
+        _ = get_agent_instance(db, agent_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+
+    # Retrieve chat history for this specific agent
+    history = vector_store.get_texts(agent_id)
+    return {"history": history}
+
+
+@app.get("/global-context")
+def get_global_context():
+    """
+    Returns all global texts stored in vector store.
+    """
+    global_texts = vector_store.get_texts("global")
+    return {"global_texts": global_texts}
 
 # --------- Knowledge Base Endpoints ---------
 @app.get("/knowledge", response_model=list[KBOut])
@@ -155,41 +172,6 @@ def add_kb_item(payload: KBCreate, db: Session = Depends(get_db)):
     entry = add_kb(db, payload.title, payload.content, payload.tags or [])
     return KBOut(id=entry.id, title=entry.title, content=entry.content,
                  tags=[t for t in (entry.tags or "").split(",") if t])
-
-
-@app.get("/debug/ping-llm")
-def ping_llm():
-    try:
-        llm = _llm()
-        response = llm.invoke("Hello from Azure OpenAI, can you confirm?")
-        return {"status": "ok", "reply": str(response)}
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
-    
-
-@app.get("/debug-env")
-def debug_env():
-    return {
-        "provider": os.getenv("LLM_PROVIDER"),
-        "azure_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
-        "deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        "api_version": os.getenv("AZURE_OPENAI_API_VERSION"),
-        "key_exists": bool(os.getenv("AZURE_OPENAI_API_KEY")),
-    }
-
-
-@app.post("/ping-llm")
-def ping_llm(message: str = Body(..., embed=True)):
-    try:
-        llm = _llm()  # use your llm factory
-        response = llm.invoke(message)
-        return {
-            "status": "ok",
-            "provider": os.getenv("LLM_PROVIDER", "openai"),
-            "reply": str(response),
-        }
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

@@ -11,6 +11,8 @@ const CrewChatPage = () => {
     setMessages((prev) => [...prev, { sender: "You", text: input }]);
 
     const API_URL = "https://aikacrew.onrender.com";
+    // const API_URL = "http://127.0.0.1:8000";
+
     try {
       const res = await fetch(`${API_URL}/crew-chat`, {
         method: "POST",
