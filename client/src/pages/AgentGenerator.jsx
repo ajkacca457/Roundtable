@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import AgentCard from "../components/AgentCard";
 
 const API_URL = "https://284dd58383a3.ngrok-free.app";
-// const API_URL = "http://127.0.0.1:8000";
-
 
 const AgentGenerator = () => {
   const [agents, setAgents] = useState([]);
@@ -19,7 +16,9 @@ const AgentGenerator = () => {
 
   // Fetch agents on mount
   useEffect(() => {
-    fetch(`https://284dd58383a3.ngrok-free.app/agents`)
+    fetch(`${API_URL}/agents`, {
+      headers: { "ngrok-skip-browser-warning": "1" },
+    })
       .then((res) => res.json())
       .then((data) => {
         setAgents(data);
@@ -45,25 +44,29 @@ const AgentGenerator = () => {
     };
 
     try {
-      const res = await fetch(`https://284dd58383a3.ngrok-free.app/agents`, {
+      const res = await fetch(`${API_URL}/agents`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "1",
+        },
         body: JSON.stringify(payload),
       });
 
       const createdAgent = await res.json();
       setAgents((prev) => [...prev, createdAgent]);
-      setNewAgent({ name: "", description: "", tasks: "" });
+      setNewAgent({ name: "", description: "", tasks: "", goal: "", backstory: "" });
     } catch (err) {
       console.error("Error creating agent:", err);
     }
   };
 
-  // 🔥 Delete agent
+  // Delete agent
   const handleDeleteAgent = async (id) => {
     try {
-      await fetch(`https://284dd58383a3.ngrok-free.app/agents/${id}`, {
+      await fetch(`${API_URL}/agents/${id}`, {
         method: "DELETE",
+        headers: { "ngrok-skip-browser-warning": "1" },
       });
       setAgents((prev) => prev.filter((agent) => agent.id !== id));
     } catch (err) {
@@ -84,7 +87,7 @@ const AgentGenerator = () => {
             <AgentCard
               key={agent.id}
               agent={agent}
-              onDelete={handleDeleteAgent} // ✅ pass function to AgentCard
+              onDelete={handleDeleteAgent}
             />
           ))}
         </div>
