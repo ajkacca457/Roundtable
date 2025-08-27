@@ -1,23 +1,23 @@
 import os
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException, Body
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+import threading
 
 from .database import Base, engine, get_db
 from .models import AgentRow
 from .schemas import AgentCreate, AgentOut, ChatRequest, ChatResponse, KBCreate, KBOut
-from .agents_service import get_agent_instance, refresh_registry,_llm
-# from .crew_runner import run_chat
+from .agents_service import get_agent_instance, refresh_registry
 from .crew_runner import run_chat_with_search
-
 from .kb_service import list_kb, add_kb
-
 from app.vector_store import vector_store
 
 
+# Create DB tables
 Base.metadata.create_all(bind=engine)
 
+# Initialize FastAPI
 app = FastAPI(title="CrewAI Backend", version="0.1.0")
 
 # CORS (adjust to your frontend domain)
@@ -28,6 +28,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------- Background preload for low-RAM instances ----------------
+def preload_vector_store():
+    # Trigger lazy loading of model, index, and texts
+    _ = vector_store.model
+    _ = vector_store.index
+    _ = vector_store.texts
+
+threading.Thread(target=preload_vector_store, daemon=True).start()
+# --------------------------------------------------------------------------
 
 # --------- Agents Endpoints ---------
 @app.get("/agents", response_model=list[AgentOut])
@@ -82,9 +92,6 @@ def get_agent(agent_id: int, db: Session = Depends(get_db)):
         goal=r.goal or "",
         backstory=r.backstory or ""
     )
-
-from fastapi import Body
-import logging
 
 @app.post("/agents/{agent_id}/chat", response_model=ChatResponse)
 def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
@@ -149,7 +156,6 @@ def get_chat_history(agent_id: int, db: Session = Depends(get_db)):
     history = vector_store.get_texts(agent_id)
     return {"history": history}
 
-
 @app.get("/global-context")
 def get_global_context():
     """
@@ -173,5 +179,6 @@ def add_kb_item(payload: KBCreate, db: Session = Depends(get_db)):
     return KBOut(id=entry.id, title=entry.title, content=entry.content,
                  tags=[t for t in (entry.tags or "").split(",") if t])
 
+# ----------------- Run Uvicorn -----------------
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

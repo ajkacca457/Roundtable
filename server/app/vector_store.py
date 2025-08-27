@@ -22,7 +22,7 @@ class ChatVectorStore:
         self.index_path = index_path
         self.texts_path = texts_path
 
-        # These will be loaded lazily
+        # Lazy-loaded components
         self._model = None
         self._index = None
         self._texts = None
@@ -30,16 +30,19 @@ class ChatVectorStore:
     @property
     def model(self):
         if self._model is None:
+            # Use smaller model for low-RAM environments
             from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer("all-MiniLM-L6-v2")
+            self._model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
         return self._model
 
     @property
     def index(self):
         if self._index is None:
             if os.path.exists(self.index_path):
-                self._index = faiss.read_index(self.index_path)
+                # Memory-map the FAISS index to reduce RAM usage
+                self._index = faiss.read_index(self.index_path, faiss.IO_FLAG_MMAP)
             else:
+                # Use standard in-memory index if file does not exist
                 self._index = faiss.IndexFlatL2(self.dim)
         return self._index
 
@@ -75,8 +78,10 @@ class ChatVectorStore:
         return [self.texts[agent_id][i] for i in indices[0] if i < len(self.texts[agent_id])]
 
     def _save(self):
+        # Save FAISS index to disk
         if self._index is not None:
             faiss.write_index(self._index, self.index_path)
+        # Save texts
         if self._texts is not None:
             with open(self.texts_path, "wb") as f:
                 pickle.dump(self._texts, f)
