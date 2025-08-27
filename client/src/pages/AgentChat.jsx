@@ -19,25 +19,44 @@ const AgentChat = () => {
   };
 
   // Fetch agent info
-  useEffect(() => {
-    fetch(`${API_URL}/agents/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setAgent(data);
+useEffect(() => {
+  const fetchAgentAndHistory = async () => {
+    try {
+      const agentRes = await fetch(`${API_URL}/agents/${id}`);
+      const agentData = await agentRes.json();
+      setAgent(agentData);
+
+      // Fetch chat history for this agent
+      const historyRes = await fetch(`${API_URL}/agents/${id}/history`);
+      const historyData = await historyRes.json();
+      const historyMessages = historyData.history.map((text, idx) => ({
+        sender: idx % 2 === 0 ? "user" : "agent", // simple alternating logic
+        text,
+        source_percent: { internal: 70, internet: 30 }, // fallback, adjust as needed
+      }));
+
+      // If no history, show greeting
+      if (historyMessages.length === 0) {
         setMessages([
           {
             sender: "agent",
-            text: `Hello! I'm ${data.name}, how can I help you?`,
-            source_percent: { internal: 100, internet: 0 }, // default
+            text: `Hello! I'm ${agentData.name}, how can I help you?`,
+            source_percent: { internal: 100, internet: 0 },
           },
         ]);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load agent:", err);
-        setLoading(false);
-      });
-  }, [id]);
+      } else {
+        setMessages(historyMessages);
+      }
+
+      setLoading(false);
+    } catch (err) {
+      console.error("Failed to load agent or history:", err);
+      setLoading(false);
+    }
+  };
+
+  fetchAgentAndHistory();
+}, [id]);
 
   // Scroll when messages change
   useEffect(scrollToBottom, [messages]);

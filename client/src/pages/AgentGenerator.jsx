@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import AgentCard from "../components/AgentCard";
 
 const API_URL = "https://aikacrew.onrender.com";
+// const API_URL = "http://127.0.0.1:8000";
+
 
 const AgentGenerator = () => {
   const [agents, setAgents] = useState([]);
