@@ -177,5 +177,5 @@ def add_kb_item(payload: KBCreate, db: Session = Depends(get_db)):
 #     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
+    port = int(os.getenv("PORT", 8000))  # Render sets PORT, locally defaults to 8000
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
