@@ -19,7 +19,7 @@ const AgentGenerator = () => {
 
   // Fetch agents on mount
   useEffect(() => {
-    fetch(`${API_URL}/agents`)
+    fetch(`https://284dd58383a3.ngrok-free.app/agents`)
       .then((res) => res.json())
       .then((data) => {
         setAgents(data);
@@ -45,7 +45,7 @@ const AgentGenerator = () => {
     };
 
     try {
-      const res = await fetch(`${API_URL}/agents`, {
+      const res = await fetch(`https://284dd58383a3.ngrok-free.app/agents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -62,7 +62,7 @@ const AgentGenerator = () => {
   // 🔥 Delete agent
   const handleDeleteAgent = async (id) => {
     try {
-      await fetch(`${API_URL}/agents/${id}`, {
+      await fetch(`https://284dd58383a3.ngrok-free.app/agents/${id}`, {
         method: "DELETE",
       });
       setAgents((prev) => prev.filter((agent) => agent.id !== id));
