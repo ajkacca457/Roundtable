@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 
 const API_URL = "https://284dd58383a3.ngrok-free.app";
-// const API_URL = "http://127.0.0.1:8000";
 
 const AgentChat = () => {
   const { id } = useParams(); // Agent ID from URL
@@ -19,44 +18,48 @@ const AgentChat = () => {
   };
 
   // Fetch agent info
-useEffect(() => {
-  const fetchAgentAndHistory = async () => {
-    try {
-      const agentRes = await fetch(`${API_URL}/agents/${id}`);
-      const agentData = await agentRes.json();
-      setAgent(agentData);
+  useEffect(() => {
+    const fetchAgentAndHistory = async () => {
+      try {
+        const agentRes = await fetch(`${API_URL}/agents/${id}`, {
+          headers: { "ngrok-skip-browser-warning": "1" },
+        });
+        const agentData = await agentRes.json();
+        setAgent(agentData);
 
-      // Fetch chat history for this agent
-      const historyRes = await fetch(`${API_URL}/agents/${id}/history`);
-      const historyData = await historyRes.json();
-      const historyMessages = historyData.history.map((text, idx) => ({
-        sender: idx % 2 === 0 ? "user" : "agent", // simple alternating logic
-        text,
-        source_percent: { internal: 70, internet: 30 }, // fallback, adjust as needed
-      }));
+        // Fetch chat history for this agent
+        const historyRes = await fetch(`${API_URL}/agents/${id}/history`, {
+          headers: { "ngrok-skip-browser-warning": "1" },
+        });
+        const historyData = await historyRes.json();
+        const historyMessages = historyData.history.map((text, idx) => ({
+          sender: idx % 2 === 0 ? "user" : "agent",
+          text,
+          source_percent: { internal: 70, internet: 30 },
+        }));
 
-      // If no history, show greeting
-      if (historyMessages.length === 0) {
-        setMessages([
-          {
-            sender: "agent",
-            text: `Hello! I'm ${agentData.name}, how can I help you?`,
-            source_percent: { internal: 100, internet: 0 },
-          },
-        ]);
-      } else {
-        setMessages(historyMessages);
+        // If no history, show greeting
+        if (historyMessages.length === 0) {
+          setMessages([
+            {
+              sender: "agent",
+              text: `Hello! I'm ${agentData.name}, how can I help you?`,
+              source_percent: { internal: 100, internet: 0 },
+            },
+          ]);
+        } else {
+          setMessages(historyMessages);
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error("Failed to load agent or history:", err);
+        setLoading(false);
       }
+    };
 
-      setLoading(false);
-    } catch (err) {
-      console.error("Failed to load agent or history:", err);
-      setLoading(false);
-    }
-  };
-
-  fetchAgentAndHistory();
-}, [id]);
+    fetchAgentAndHistory();
+  }, [id]);
 
   // Scroll when messages change
   useEffect(scrollToBottom, [messages]);
@@ -67,13 +70,17 @@ useEffect(() => {
 
     const userMessage = { sender: "user", text: input };
     setMessages((prev) => [...prev, userMessage]);
+    const messageToSend = input;
     setInput("");
 
     try {
       const res = await fetch(`${API_URL}/agents/${id}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "1",
+        },
+        body: JSON.stringify({ message: messageToSend }),
       });
       const data = await res.json();
 

@@ -16,7 +16,10 @@ const CrewChatPage = () => {
     try {
       const res = await fetch(`${API_URL}/crew-chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "1", // <-- Added header
+        },
         body: JSON.stringify({ message: input }),
       });
 

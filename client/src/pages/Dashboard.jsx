@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 const API_URL = "https://284dd58383a3.ngrok-free.app";
 // const API_URL = "http://127.0.0.1:8000";
 
-
 const Dashboard = () => {
   const [agents, setAgents] = useState([]);
   const [knowledge, setKnowledge] = useState([]);
@@ -12,10 +11,14 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const agentsRes = await fetch(`${API_URL}/agents`);
+        const agentsRes = await fetch(`${API_URL}/agents`, {
+          headers: { "ngrok-skip-browser-warning": "1" },
+        });
         const agentsData = await agentsRes.json();
 
-        const kbRes = await fetch(`${API_URL}/knowledge`);
+        const kbRes = await fetch(`${API_URL}/knowledge`, {
+          headers: { "ngrok-skip-browser-warning": "1" },
+        });
         const kbData = await kbRes.json();
 
         setAgents(agentsData);
