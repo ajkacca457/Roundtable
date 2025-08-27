@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 
-const API_URL = "https://aikacrew.onrender.com";
+const API_URL = "https://284dd58383a3.ngrok-free.app";
 // const API_URL = "http://127.0.0.1:8000";
 
 const AgentChat = () => {
