@@ -173,5 +173,9 @@ def add_kb_item(payload: KBCreate, db: Session = Depends(get_db)):
     return KBOut(id=entry.id, title=entry.title, content=entry.content,
                  tags=[t for t in (entry.tags or "").split(",") if t])
 
+# if __name__ == "__main__":
+#     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
