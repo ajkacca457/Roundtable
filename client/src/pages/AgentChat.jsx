@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
-
-const API_URL = "https://284dd58383a3.ngrok-free.app";
+import { API_URL } from "../utils/env.js";
 
 const AgentChat = () => {
   const { id } = useParams(); // Agent ID from URL

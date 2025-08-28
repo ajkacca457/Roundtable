@@ -23,6 +23,8 @@ class AgentOut(BaseModel):
 # ---------- Chat ----------
 class ChatRequest(BaseModel):
     message: str
+    session_id: str | None = None  # optional for first message
+
 
 class ChatResponse(BaseModel):
     reply: str
