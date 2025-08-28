@@ -185,19 +185,28 @@ def get_global_context():
     return {"global_texts": global_texts}
 
 # --------- Knowledge Base Endpoints ---------
-@app.get("/knowledge", response_model=list[KBOut])
-def get_kb(db: Session = Depends(get_db)):
-    items = list_kb(db)
-    return [
-        KBOut(id=i.id, title=i.title, content=i.content, tags=[t for t in (i.tags or "").split(",") if t])
-        for i in items
+@app.get("/knowledge")
+def list_knowledge_files():
+    """
+    Returns all JSON files in the app folder and DOCX files in the docs folder.
+    """
+    APP_FOLDER = os.path.dirname(__file__)
+    DOCS_FOLDER = os.path.join(APP_FOLDER, "docs")
+    # JSON files in app folder
+    json_files = [
+        f for f in os.listdir(APP_FOLDER) 
+        if f.endswith(".json")
     ]
 
-@app.post("/knowledge", response_model=KBOut)
-def add_kb_item(payload: KBCreate, db: Session = Depends(get_db)):
-    entry = add_kb(db, payload.title, payload.content, payload.tags or [])
-    return KBOut(id=entry.id, title=entry.title, content=entry.content,
-                 tags=[t for t in (entry.tags or "").split(",") if t])
+    # DOCX files in docs folder
+    docx_files = []
+    if os.path.exists(DOCS_FOLDER):
+        docx_files = [f for f in os.listdir(DOCS_FOLDER) if f.endswith(".docx")]
+
+    return {
+        "json_files": json_files,
+        "docx_files": docx_files
+    }
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
