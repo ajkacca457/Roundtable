@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AgentCard from "../components/AgentCard";
+import { API_URL } from "../utils/env.js";
 
-const API_URL = "https://284dd58383a3.ngrok-free.app";
 
 const AgentGenerator = () => {
   const [agents, setAgents] = useState([]);

@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
-
-const API_URL = "https://284dd58383a3.ngrok-free.app";
-// const API_URL = "http://127.0.0.1:8000";
+import { API_URL } from "../utils/env.js";
 
 const Dashboard = () => {
   const [agents, setAgents] = useState([]);

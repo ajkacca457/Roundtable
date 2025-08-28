@@ -1,34 +1,50 @@
 import React, { useState } from "react";
+import { API_URL } from "../utils/env.js";
+import { v4 as uuidv4 } from "uuid"; // For generating session ID
 
 const CrewChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [sessionId, setSessionId] = useState(null); // Track current session
 
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    // Add user message
+    // Add user message locally
     setMessages((prev) => [...prev, { sender: "You", text: input }]);
-
-    const API_URL = "https://284dd58383a3.ngrok-free.app";
-    // const API_URL = "http://127.0.0.1:8000";
 
     try {
       const res = await fetch(`${API_URL}/crew-chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "1", // <-- Added header
+          "ngrok-skip-browser-warning": "1",
         },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({
+          message: input,
+          session_id: sessionId, // Send session ID to backend
+        }),
       });
 
       const data = await res.json();
-      setMessages((prev) => [...prev, ...data.messages]);
+      console.log("Crew chat response:", data);
+
+      // Update sessionId if backend returns a new one
+      if (!sessionId) setSessionId(data.session_id);
+
+      // Replace messages with full conversation from backend
+      setMessages(data.messages);
+
       setInput("");
     } catch (err) {
       console.error("Crew chat error:", err);
     }
+  };
+
+  const clearSession = () => {
+    setMessages([]);
+    setInput("");
+    setSessionId(null); // Reset session
   };
 
   return (
@@ -37,9 +53,7 @@ const CrewChatPage = () => {
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`chat ${
-              msg.sender === "You" ? "chat-end" : "chat-start"
-            }`}
+            className={`chat ${msg.sender === "You" ? "chat-end" : "chat-start"}`}
           >
             <div
               className={`chat-bubble ${
@@ -65,6 +79,9 @@ const CrewChatPage = () => {
         />
         <button className="btn btn-primary" onClick={sendMessage}>
           Send
+        </button>
+        <button className="btn btn-secondary" onClick={clearSession}>
+          Clear Session
         </button>
       </div>
     </div>

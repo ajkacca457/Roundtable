@@ -18,6 +18,7 @@ crewai = "^0.51.0"
 langchain-openai = "^0.1.7"
 faiss-cpu = "^1.7.4"
 sentence-transformers = "^2.2.2"
+python-docx = "^1.2.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

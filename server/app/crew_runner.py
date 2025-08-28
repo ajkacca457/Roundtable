@@ -74,12 +74,14 @@ def run_chat_with_search(
     # 4️⃣ Create CrewAI task
     task = Task(
         description=context,
-        expected_output=(
-            "Respond naturally and conversationally. "
-            "Use internal knowledge, global context, and internet knowledge if available. "
-            "At the end, indicate approximate percentages of info from each source, "
-            "e.g., 'Sources: Internal 60%, Internet 40%'"
-        ),
+expected_output = (
+    "Engage the user in a natural, interactive conversation. "
+    "Ask probing questions to understand their goals, challenges, and context. "
+    "Generate standalone insights based on internal knowledge, global context, and relevant external sources. "
+    "Encourage the user to think creatively and build upon their own ideas. "
+    "Reference previous team discussions and documents where relevant. "
+    "Do not provide a single final answer; focus on guiding exploration, uncovering assumptions, and facilitating actionable thinking."
+),
         agent=agent,
     )
 

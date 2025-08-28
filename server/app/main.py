@@ -3,6 +3,9 @@ import uvicorn
 from fastapi import FastAPI, Depends, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+import uuid
+import time
+import random
 
 from .database import Base, engine, get_db
 from .models import AgentRow
@@ -117,25 +120,48 @@ def delete_agent(agent_id: int, db: Session = Depends(get_db)):
 # --------- Crew Chat Endpoint ---------
 @app.post("/crew-chat")
 def crew_chat(payload: ChatRequest, db: Session = Depends(get_db)):
-    # Fetch all agents
+    import uuid, random, time
+
+    # 1️⃣ Session ID
+    session_id = payload.session_id or str(uuid.uuid4())
+
+    # 2️⃣ Fetch agents
     agents = db.query(AgentRow).all()
     if not agents:
-        return {"messages": [{"sender": "System", "text": "No agents available."}]}
+        return {"session_id": session_id, "messages": [{"sender": "System", "text": "No agents available."}]}
 
+    # 3️⃣ Pick one random agent
+    agent = random.choice(agents)
+
+    # 4️⃣ Store user message
+    vector_store.add_texts(session_id, [f"User: {payload.message}"])
+
+    # 5️⃣ Retrieve full session history
+    conversation_contexts = vector_store.get_texts(session_id)
+    conversation_context = "\n".join(conversation_contexts)
+
+    # 6️⃣ Run agent
+    result = run_chat_with_search(db, agent.id, conversation_context)
+    reply_text = result.get("reply", "")
+
+    # 7️⃣ Store agent reply
+    vector_store.add_texts(session_id, [f"{agent.name}: {reply_text}"])
+
+    # 8️⃣ Optional delay
+    time.sleep(random.uniform(0.5, 1.5))
+
+    # 9️⃣ Return **full conversation history** as messages
     messages = []
-    # Initialize conversation context with user's message
-    conversation_context = f"User: {payload.message}"
+    for msg in vector_store.get_texts(session_id):
+        # Split stored text into sender and message
+        if ": " in msg:
+            sender, text = msg.split(": ", 1)
+        else:
+            sender, text = "System", msg
+        messages.append({"sender": sender, "text": text})
 
-    # Each agent replies in sequence
-    for agent in agents:
-        # Pass the current conversation context to the agent
-        reply = run_chat_with_search(db, agent.id, conversation_context)
-        # Record the agent's reply
-        messages.append({"sender": agent.name, "text": reply})
-        # Update context so the next agent sees previous replies
-        conversation_context += f"\n{agent.name}: {reply}"
-
-    return {"messages": messages}
+    return {"session_id": session_id, "messages": messages}
+# # --------- History Endpoints ---------
 
 @app.get("/agents/{agent_id}/history")
 def get_chat_history(agent_id: int, db: Session = Depends(get_db)):
