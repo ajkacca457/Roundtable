@@ -8,6 +8,7 @@ class AgentCreate(BaseModel):
     tasks: Optional[List[str]] = []
     goal: Optional[str] = ""        # new
     backstory: Optional[str] = ""   # new
+    expected_output: Optional[str] = None  # 👈 new
 
 class AgentOut(BaseModel):
     id: int
@@ -16,19 +17,23 @@ class AgentOut(BaseModel):
     tasks: List[str]
     goal: str           # new
     backstory: str      # new
+    expected_output: Optional[str] = None  # 👈 new
 
     class Config:
         from_attributes = True
 
+# Model for updating an agent's expected_output
+class ExpectedOutputUpdate(BaseModel):
+    expected_output: str
+
 # ---------- Chat ----------
 class ChatRequest(BaseModel):
     message: str
-    session_id: str | None = None  # optional for first message
-
+    session_id: Optional[str] = None  # optional for first message
 
 class ChatResponse(BaseModel):
     reply: str
-    source_percent: dict 
+    source_percent: dict
 
 # ---------- Knowledge Base ----------
 class KBCreate(BaseModel):

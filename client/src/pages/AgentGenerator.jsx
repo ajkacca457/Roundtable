@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import AgentCard from "../components/AgentCard";
 import { API_URL } from "../utils/env.js";
 
-
 const AgentGenerator = () => {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,6 +11,7 @@ const AgentGenerator = () => {
     tasks: "",
     goal: "",
     backstory: "",
+    expected_output: "", // 👈 new
   });
 
   // Fetch agents on mount
@@ -41,6 +41,7 @@ const AgentGenerator = () => {
       tasks: newAgent.tasks.split(",").map((t) => t.trim()),
       goal: newAgent.goal,
       backstory: newAgent.backstory,
+      expected_output: newAgent.expected_output, // 👈 include in payload
     };
 
     try {
@@ -55,7 +56,14 @@ const AgentGenerator = () => {
 
       const createdAgent = await res.json();
       setAgents((prev) => [...prev, createdAgent]);
-      setNewAgent({ name: "", description: "", tasks: "", goal: "", backstory: "" });
+      setNewAgent({
+        name: "",
+        description: "",
+        tasks: "",
+        goal: "",
+        backstory: "",
+        expected_output: "", // 👈 reset
+      });
     } catch (err) {
       console.error("Error creating agent:", err);
     }
@@ -84,11 +92,7 @@ const AgentGenerator = () => {
       ) : (
         <div className="grid md:grid-cols-2 gap-6 mb-10">
           {agents.map((agent) => (
-            <AgentCard
-              key={agent.id}
-              agent={agent}
-              onDelete={handleDeleteAgent}
-            />
+            <AgentCard key={agent.id} agent={agent} onDelete={handleDeleteAgent} />
           ))}
         </div>
       )}
@@ -102,43 +106,39 @@ const AgentGenerator = () => {
               type="text"
               placeholder="Agent Name"
               value={newAgent.name}
-              onChange={(e) =>
-                setNewAgent({ ...newAgent, name: e.target.value })
-              }
+              onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
               className="input input-bordered w-full"
               required
             />
             <textarea
               placeholder="Description"
               value={newAgent.description}
-              onChange={(e) =>
-                setNewAgent({ ...newAgent, description: e.target.value })
-              }
+              onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })}
               className="textarea textarea-bordered w-full"
             />
             <textarea
               placeholder="Goal"
               value={newAgent.goal}
-              onChange={(e) =>
-                setNewAgent({ ...newAgent, goal: e.target.value })
-              }
+              onChange={(e) => setNewAgent({ ...newAgent, goal: e.target.value })}
               className="textarea textarea-bordered w-full"
             />
             <textarea
               placeholder="Backstory"
               value={newAgent.backstory}
-              onChange={(e) =>
-                setNewAgent({ ...newAgent, backstory: e.target.value })
-              }
+              onChange={(e) => setNewAgent({ ...newAgent, backstory: e.target.value })}
+              className="textarea textarea-bordered w-full"
+            />
+            <textarea
+              placeholder="Expected Output / Custom Prompt"
+              value={newAgent.expected_output} // 👈 new
+              onChange={(e) => setNewAgent({ ...newAgent, expected_output: e.target.value })} // 👈 new
               className="textarea textarea-bordered w-full"
             />
             <input
               type="text"
               placeholder="Tasks (comma separated)"
               value={newAgent.tasks}
-              onChange={(e) =>
-                setNewAgent({ ...newAgent, tasks: e.target.value })
-              }
+              onChange={(e) => setNewAgent({ ...newAgent, tasks: e.target.value })}
               className="input input-bordered w-full"
             />
             <div className="flex justify-end">

@@ -1,4 +1,3 @@
-# crew_runner.py
 import os
 import re
 import requests
@@ -6,6 +5,16 @@ from crewai import Crew, Task, Process
 from sqlalchemy.orm import Session
 from .agents_service import get_agent_instance
 from .vector_store import vector_store
+
+# Default fallback prompt if agent has no custom expected_output
+DEFAULT_EXPECTED_OUTPUT = (
+    "Engage the user in a natural, interactive conversation. "
+    "Ask probing questions to understand their goals, challenges, and context. "
+    "Generate standalone insights based on internal knowledge, global context, and relevant external sources. "
+    "Encourage the user to think creatively and build upon their own ideas. "
+    "Reference previous team discussions and documents where relevant. "
+    "Do not provide a single final answer; focus on guiding exploration, uncovering assumptions, and facilitating actionable thinking."
+)
 
 def search_internet(query: str, top_k: int = 3) -> list[str]:
     """
@@ -34,32 +43,33 @@ def run_chat_with_search(
     user_message: str,
     use_search: bool = True,
     top_history: int = 5,
-    top_global: int = 5  # Number of relevant global messages to include
+    top_global: int = 5
 ) -> dict:
     """
     Run a chat with an agent using:
     1️⃣ Relevant previous chat history from vector store (agent-specific)
-    2️⃣ Relevant global context from CEO/general history
+    2️⃣ Relevant global context
     3️⃣ Optional Google CSE search
     Stores new chats in vector store for future context.
     Returns:
       - 'reply': agent response
       - 'source_percent': approximate percentage from internal vs internet
     """
-    agent = get_agent_instance(db, agent_id)
+    agent, expected_output = get_agent_instance(db, agent_id)
+    expected_output = expected_output or DEFAULT_EXPECTED_OUTPUT
 
-    # 1️⃣ Retrieve relevant previous chats for this agent
+    # 1️⃣ Retrieve relevant previous chats
     relevant_history = vector_store.query(agent_id, user_message, top_k=top_history)
     history_text = "\n".join(relevant_history) if relevant_history else ""
 
-    # 1️⃣b Retrieve relevant global context
+    # 2️⃣ Retrieve relevant global context
     global_relevant = vector_store.query("global", user_message, top_k=top_global)
     global_text = "\n".join(global_relevant) if global_relevant else ""
 
-    # 2️⃣ Fetch external knowledge
+    # 3️⃣ Fetch external knowledge
     external_knowledge = search_internet(user_message, top_k=3) if use_search else []
 
-    # 3️⃣ Build context for the agent
+    # 4️⃣ Build context
     context_parts = []
     if history_text:
         context_parts.append(f"Previous chats:\n{history_text}")
@@ -71,21 +81,16 @@ def run_chat_with_search(
         context_parts.append("External Knowledge (from internet search):\n" + "\n".join(external_knowledge))
     context = "\n\n".join(context_parts)
 
-    # 4️⃣ Create CrewAI task
+    print(f"[DEBUG] Agent ID {agent_id} expected_output:\n{expected_output}\n")
+
+    # 5️⃣ Create CrewAI task
     task = Task(
         description=context,
-expected_output = (
-    "Engage the user in a natural, interactive conversation. "
-    "Ask probing questions to understand their goals, challenges, and context. "
-    "Generate standalone insights based on internal knowledge, global context, and relevant external sources. "
-    "Encourage the user to think creatively and build upon their own ideas. "
-    "Reference previous team discussions and documents where relevant. "
-    "Do not provide a single final answer; focus on guiding exploration, uncovering assumptions, and facilitating actionable thinking."
-),
+        expected_output=expected_output,
         agent=agent,
     )
 
-    # 5️⃣ Run the agent
+    # 6️⃣ Run the agent
     crew = Crew(
         agents=[agent],
         tasks=[task],
@@ -95,13 +100,13 @@ expected_output = (
     result = crew.kickoff()
     reply_text = str(result)
 
-    # 6️⃣ Extract source percentages from LLM response
-    internal_pct, internet_pct = 70, 30  # fallback defaults
+    # 7️⃣ Extract source percentages from LLM response
+    internal_pct, internet_pct = 70, 30
     match = re.search(r"Internal (\d+)%.*Internet (\d+)%", reply_text)
     if match:
         internal_pct, internet_pct = int(match.group(1)), int(match.group(2))
 
-    # 7️⃣ Store new chat in vector store (agent-specific)
+    # 8️⃣ Store new chat in vector store
     vector_store.add_texts(agent_id, [user_message, reply_text])
 
     return {

@@ -35,6 +35,15 @@ const AgentCard = ({ agent, onDelete }) => {
           </div>
         )}
 
+        {agent.expected_output && (
+          <div className="mb-2">
+            <h3 className="font-semibold text-sm">Prompt Used:</h3>
+            <pre className="text-sm text-gray-700 bg-gray-100 p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap">
+              {agent.expected_output}
+            </pre>
+          </div>
+        )}
+
         <div className="card-actions justify-between mt-4">
           <Link
             to={`/dashboard/agents/${agent.id}`}

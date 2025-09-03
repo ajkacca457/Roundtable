@@ -1,6 +1,6 @@
 import os
 import uvicorn
-from fastapi import FastAPI, Depends, HTTPException, Body
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import uuid
@@ -9,24 +9,22 @@ import random
 
 from .database import Base, engine, get_db
 from .models import AgentRow
-from .schemas import AgentCreate, AgentOut, ChatRequest, ChatResponse, KBCreate, KBOut
-from .agents_service import get_agent_instance, refresh_registry,_llm
-# from .crew_runner import run_chat
+from .schemas import AgentCreate, AgentOut, ChatRequest, ChatResponse, KBCreate, KBOut, ExpectedOutputUpdate
+from .agents_service import get_agent_instance, refresh_registry
 from .crew_runner import run_chat_with_search
-
 from .kb_service import list_kb, add_kb
-
 from app.vector_store import vector_store
 
-
+# Create tables
 Base.metadata.create_all(bind=engine)
 
+# Initialize FastAPI
 app = FastAPI(title="CrewAI Backend", version="0.1.0")
 
-# CORS (adjust to your frontend domain)
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # adjust to frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,7 +41,8 @@ def list_agents(db: Session = Depends(get_db)):
             description=r.description,
             tasks=[t.strip() for t in (r.tasks or "").split(",") if t.strip()],
             goal=r.goal or "",
-            backstory=r.backstory or ""
+            backstory=r.backstory or "",
+            expected_output=r.expected_output
         )
         for r in rows
     ]
@@ -56,7 +55,8 @@ def create_agent(payload: AgentCreate, db: Session = Depends(get_db)):
         description=payload.description or "",
         tasks=tasks_str,
         goal=payload.goal or "",
-        backstory=payload.backstory or ""
+        backstory=payload.backstory or "",
+        expected_output=payload.expected_output
     )
     db.add(row)
     db.commit()
@@ -68,7 +68,8 @@ def create_agent(payload: AgentCreate, db: Session = Depends(get_db)):
         description=row.description,
         tasks=payload.tasks or [],
         goal=row.goal,
-        backstory=row.backstory
+        backstory=row.backstory,
+        expected_output=row.expected_output
     )
 
 @app.get("/agents/{agent_id}", response_model=AgentOut)
@@ -76,137 +77,96 @@ def get_agent(agent_id: int, db: Session = Depends(get_db)):
     r = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
     if not r:
         raise HTTPException(404, "Agent not found")
-    
     return AgentOut(
         id=r.id,
         name=r.name,
         description=r.description,
         tasks=[t.strip() for t in (r.tasks or "").split(",") if t.strip()],
         goal=r.goal or "",
-        backstory=r.backstory or ""
+        backstory=r.backstory or "",
+        expected_output=r.expected_output
     )
 
-from fastapi import Body
-import logging
+@app.get("/agents/{agent_id}/expected_output")
+def get_expected_output(agent_id: int, db: Session = Depends(get_db)):
+    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
+    if not row:
+        raise HTTPException(404, "Agent not found")
+    return {"expected_output": row.expected_output}
 
-@app.post("/agents/{agent_id}/chat", response_model=ChatResponse)
-def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
-    try:
-        # Ensure agent exists
-        _ = get_agent_instance(db, agent_id)
-
-        # Run chat using CrewAI + vector memory + Google search
-        result = run_chat_with_search(db, agent_id, payload.message, use_search=True)
-
-        # Return result in schema
-        return ChatResponse(**result)
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent error: {e}")
+@app.put("/agents/{agent_id}/expected_output")
+def update_expected_output(agent_id: int, payload: ExpectedOutputUpdate, db: Session = Depends(get_db)):
+    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
+    if not row:
+        raise HTTPException(404, "Agent not found")
+    row.expected_output = payload.expected_output
+    db.commit()
+    db.refresh(row)
+    return {"message": "Expected output updated successfully", "expected_output": row.expected_output}
 
 @app.delete("/agents/{agent_id}", status_code=204)
 def delete_agent(agent_id: int, db: Session = Depends(get_db)):
     row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
     if not row:
         raise HTTPException(404, "Agent not found")
-    
     db.delete(row)
     db.commit()
     refresh_registry()
-    return None  # 204 No Content means no body returned
+    return None  # 204 No Content
 
-# --------- Crew Chat Endpoint ---------
+# --------- Chat Endpoints ---------
+@app.post("/agents/{agent_id}/chat", response_model=ChatResponse)
+def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
+    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    result = run_chat_with_search(db, agent_id, payload.message, use_search=True)
+    return ChatResponse(**result)
+
 @app.post("/crew-chat")
 def crew_chat(payload: ChatRequest, db: Session = Depends(get_db)):
-    import uuid, random, time
-
-    # 1️⃣ Session ID
     session_id = payload.session_id or str(uuid.uuid4())
-
-    # 2️⃣ Fetch agents
     agents = db.query(AgentRow).all()
     if not agents:
         return {"session_id": session_id, "messages": [{"sender": "System", "text": "No agents available."}]}
-
-    # 3️⃣ Pick one random agent
     agent = random.choice(agents)
-
-    # 4️⃣ Store user message
     vector_store.add_texts(session_id, [f"User: {payload.message}"])
-
-    # 5️⃣ Retrieve full session history
     conversation_contexts = vector_store.get_texts(session_id)
     conversation_context = "\n".join(conversation_contexts)
-
-    # 6️⃣ Run agent
     result = run_chat_with_search(db, agent.id, conversation_context)
     reply_text = result.get("reply", "")
-
-    # 7️⃣ Store agent reply
     vector_store.add_texts(session_id, [f"{agent.name}: {reply_text}"])
-
-    # 8️⃣ Optional delay
     time.sleep(random.uniform(0.5, 1.5))
-
-    # 9️⃣ Return **full conversation history** as messages
     messages = []
     for msg in vector_store.get_texts(session_id):
-        # Split stored text into sender and message
         if ": " in msg:
             sender, text = msg.split(": ", 1)
         else:
             sender, text = "System", msg
         messages.append({"sender": sender, "text": text})
-
     return {"session_id": session_id, "messages": messages}
-# # --------- History Endpoints ---------
 
 @app.get("/agents/{agent_id}/history")
 def get_chat_history(agent_id: int, db: Session = Depends(get_db)):
-    # Verify agent exists
-    try:
-        _ = get_agent_instance(db, agent_id)
-    except ValueError:
+    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
+    if not row:
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
-
-    # Retrieve chat history for this specific agent
     history = vector_store.get_texts(agent_id)
     return {"history": history}
 
-
 @app.get("/global-context")
 def get_global_context():
-    """
-    Returns all global texts stored in vector store.
-    """
     global_texts = vector_store.get_texts("global")
     return {"global_texts": global_texts}
 
 # --------- Knowledge Base Endpoints ---------
 @app.get("/knowledge")
 def list_knowledge_files():
-    """
-    Returns all JSON files in the app folder and DOCX files in the docs folder.
-    """
     APP_FOLDER = os.path.dirname(__file__)
     DOCS_FOLDER = os.path.join(APP_FOLDER, "docs")
-    # JSON files in app folder
-    json_files = [
-        f for f in os.listdir(APP_FOLDER) 
-        if f.endswith(".json")
-    ]
-
-    # DOCX files in docs folder
-    docx_files = []
-    if os.path.exists(DOCS_FOLDER):
-        docx_files = [f for f in os.listdir(DOCS_FOLDER) if f.endswith(".docx")]
-
-    return {
-        "json_files": json_files,
-        "docx_files": docx_files
-    }
+    json_files = [f for f in os.listdir(APP_FOLDER) if f.endswith(".json")]
+    docx_files = [f for f in os.listdir(DOCS_FOLDER) if f.endswith(".docx")] if os.path.exists(DOCS_FOLDER) else []
+    return {"json_files": json_files, "docx_files": docx_files}
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

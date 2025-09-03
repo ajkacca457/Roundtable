@@ -8,8 +8,10 @@ class AgentRow(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     description: Mapped[str] = mapped_column(Text, default="")
     tasks: Mapped[str] = mapped_column(Text, default="")  # comma-separated
-    goal: Mapped[str] = mapped_column(Text, default="")  # new
+    goal: Mapped[str] = mapped_column(Text, default="")   # new
     backstory: Mapped[str] = mapped_column(Text, default="")  # new
+    expected_output: Mapped[str | None] = mapped_column(Text, default=None)  # 👈 NEW
+
 
 class KnowledgeEntry(Base):
     __tablename__ = "knowledge"
