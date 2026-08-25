@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 .venv/
 .env
+vector_index.faiss
+vector_texts.pkl
+data/

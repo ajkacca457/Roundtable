@@ -12,7 +12,7 @@ const Sidebar = () => {
 
   return (
     <aside className="fixed top-0 left-0 h-full w-64 bg-white shadow-md flex flex-col">
-      <div className="p-6 text-2xl font-bold text-primary">AikaCrew</div>
+      <div className="p-6 text-2xl font-bold text-primary">Roundtable</div>
       <nav className="flex-1 px-4 space-y-2 mt-4">
         {links.map((link) => (
           <Link
