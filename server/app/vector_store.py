@@ -1,73 +1,67 @@
 # vector_store.py
-import faiss
-from typing import List, Dict
-import numpy as np
-from sentence_transformers import SentenceTransformer
 import os
-import pickle
+from typing import List
+from openai import OpenAI
+from sqlalchemy.orm import Session
 
+from .database import SessionLocal
+from .models import Memory
 
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EMBEDDING_MODEL = "text-embedding-3-small"
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-INDEX_FILE = os.path.join(ROOT_DIR, "vector_index.faiss")
-TEXTS_FILE = os.path.join(ROOT_DIR, "vector_texts.pkl")
 
 class ChatVectorStore:
-    def __init__(
-        self,
-        dim: int = 384,
-        # index_path: str = "vector_index.faiss",
-        # texts_path: str = "vector_texts.pkl"
-        index_path=INDEX_FILE, 
-        texts_path=TEXTS_FILE
-    ):
-        self.dim = dim
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
-        self.index_path = index_path
-        self.texts_path = texts_path
+    def _embed(self, text: str) -> list[float]:
+        response = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
+        return response.data[0].embedding
 
-        # Load existing index if available, else create a new one
-        if os.path.exists(self.index_path):
-            self.index = faiss.read_index(self.index_path)
-        else:
-            self.index = faiss.IndexFlatL2(dim)
+    def _split(self, text: str):
+        if ": " in text:
+            role, content = text.split(": ", 1)
+            return role, content
+        return "note", text
 
-        # Load saved texts (now as a dict keyed by agent_id)
-        if os.path.exists(self.texts_path):
-            with open(self.texts_path, "rb") as f:
-                self.texts: Dict[int, List[str]] = pickle.load(f)
-        else:
-            self.texts: Dict[int, List[str]] = {}
-
-    def add_texts(self, agent_id: int, texts: List[str]):
+    def add_texts(self, scope, texts: List[str]):
         if not texts:
             return
-        embeddings = self.model.encode(texts)
-        self.index.add(np.array(embeddings, dtype=np.float32))
+        db: Session = SessionLocal()
+        try:
+            for text in texts:
+                role, content = self._split(text)
+                embedding = self._embed(content)
+                db.add(Memory(user_id=str(scope), role=role, content=content, embedding=embedding))
+            db.commit()
+        finally:
+            db.close()
 
-        # Initialize agent list if not present
-        if agent_id not in self.texts:
-            self.texts[agent_id] = []
-        self.texts[agent_id].extend(texts)
-        self._save()
+    def get_texts(self, scope) -> List[str]:
+        db: Session = SessionLocal()
+        try:
+            rows = (
+                db.query(Memory)
+                .filter(Memory.user_id == str(scope))
+                .order_by(Memory.created_at.asc())
+                .all()
+            )
+            return [f"{r.role}: {r.content}" for r in rows]
+        finally:
+            db.close()
 
-    def get_texts(self, agent_id: int) -> List[str]:
-        return self.texts.get(agent_id, []).copy()
+    def query(self, scope, query_text: str, top_k: int = 5) -> List[str]:
+        db: Session = SessionLocal()
+        try:
+            query_embedding = self._embed(query_text)
+            rows = (
+                db.query(Memory)
+                .filter(Memory.user_id == str(scope))
+                .order_by(Memory.embedding.l2_distance(query_embedding))
+                .limit(top_k)
+                .all()
+            )
+            return [f"{r.role}: {r.content}" for r in rows]
+        finally:
+            db.close()
 
-    def query(self, agent_id: int, query: str, top_k: int = 5) -> List[str]:
-        if agent_id not in self.texts or len(self.texts[agent_id]) == 0:
-            return []
-        query_emb = self.model.encode([query])
-        distances, indices = self.index.search(np.array(query_emb, dtype=np.float32), top_k)
-        # Ensure we only return texts for this agent
-        return [self.texts[agent_id][i] for i in indices[0] if i < len(self.texts[agent_id])]
 
-    def _save(self):
-        # Save index
-        faiss.write_index(self.index, self.index_path)
-        # Save texts
-        with open(self.texts_path, "wb") as f:
-            pickle.dump(self.texts, f)
-
-# Singleton instance
 vector_store = ChatVectorStore()
