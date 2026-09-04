@@ -43,7 +43,6 @@ class ExpectedOutputUpdate(BaseModel):
 
 # ---------- Chat ----------
 class ChatRequest(BaseModel):
-    board_id:int
     message: str
     session_id: Optional[str] = None  # optional for first message
 

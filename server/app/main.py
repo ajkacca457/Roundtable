@@ -144,28 +144,74 @@ def delete_agent(agent_id: int, db: Session = Depends(get_db)):
     return None  # 204 No Content
 
 # --------- Chat Endpoints ---------
-@app.post("/crew-chat")
-def crew_chat(payload: ChatRequest, db: Session = Depends(get_db)):
-    session_id = payload.session_id or str(uuid.uuid4())
-    agents = db.query(AgentRow).all()
+def _parse_mention(message: str, agents: list[AgentRow]):
+    """If message starts with @AgentName, return (agent, rest). Otherwise (None, message)."""
+    match = re.match(r"^@(\S+)[,:]?\s*(.*)", message.strip())
+    if not match:
+        return None, message
+    mentioned = match.group(1).lower()
+    rest = match.group(2).strip() or message
+    for a in agents:
+        if a.name.lower().replace(" ", "") == mentioned.replace(" ", ""):
+            return a, rest
+    return None, message
+
+@app.post("/boards/{board_id}/chat")
+async def crew_chat(board_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
+    agents = db.query(AgentRow).filter(AgentRow.board_id == board_id).all()
     if not agents:
-        return {"session_id": session_id, "messages": [{"sender": "System", "text": "No agents available."}]}
-    agent = random.choice(agents)
-    vector_store.add_texts(session_id, [f"User: {payload.message}"])
-    conversation_contexts = vector_store.get_texts(session_id)
-    conversation_context = "\n".join(conversation_contexts)
-    result = run_chat_with_search(db, agent.id, conversation_context)
-    reply_text = result.get("reply", "")
-    vector_store.add_texts(session_id, [f"{agent.name}: {reply_text}"])
-    time.sleep(random.uniform(0.5, 1.5))
-    messages = []
-    for msg in vector_store.get_texts(session_id):
-        if ": " in msg:
-            sender, text = msg.split(": ", 1)
-        else:
-            sender, text = "System", msg
-        messages.append({"sender": sender, "text": text})
-    return {"session_id": session_id, "messages": messages}
+        return {"messages": [{"sender": "System", "text": "This board has no agents yet."}]}
+
+    vector_store.add_texts(board_id, [f"User: {payload.message}"])
+
+    for a in agents:
+        get_agent_instance(db, a.id)
+
+    mentioned_agent, clean_message = _parse_mention(payload.message, agents)
+
+    if mentioned_agent:
+        result = await asyncio.to_thread(
+            run_chat_with_search, db, mentioned_agent.id, board_id, clean_message
+        )
+        return {
+            "messages": [
+                {"sender": "User", "text": payload.message},
+                {"sender": mentioned_agent.name, "text": result["reply"]},
+            ]
+        }
+
+    tasks = [
+        asyncio.to_thread(run_chat_with_search, db, a.id, board_id, payload.message)
+        for a in agents
+    ]
+    results = await asyncio.gather(*tasks)
+
+    advisor_messages = [
+        {"sender": a.name, "text": r["reply"]} for a, r in zip(agents, results)
+    ]
+
+    synthesis_prompt = (
+        "Here are perspectives from different board advisors on this question:\n\n"
+        + "\n\n".join(f"{a.name}: {r['reply']}" for a, r in zip(agents, results))
+        + "\n\nSynthesize these into one clear recommendation for the user, noting any disagreement."
+    )
+    synthesis_reply = await asyncio.to_thread(run_synthesis, synthesis_prompt)
+    vector_store.add_texts(board_id, [f"Synthesis: {synthesis_reply}"])
+
+    return {
+        "messages": (
+            [{"sender": "User", "text": payload.message}]
+            + advisor_messages
+            + [{"sender": "Synthesis", "text": synthesis_reply}]
+        )
+    }
+
+@app.get("/boards/{board_id}/history")
+def get_board_history(board_id: int, db: Session = Depends(get_db)):
+    board = db.query(Board).filter(Board.id == board_id).first()
+    if not board:
+        raise HTTPException(404, "Board not found")
+    return {"history": vector_store.get_texts(board_id)}
 
 # --------- Knowledge Base Endpoints ---------
 @app.get("/knowledge", response_model=list[KBOut])
