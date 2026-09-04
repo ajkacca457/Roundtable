@@ -1,8 +1,22 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+# ---------- Boards ----------
+class BoardCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+
+class BoardOut(BaseModel):
+    id: int
+    name: str
+    description: str
+
+    class Config:
+        from_attributes = True
+
 # ---------- Agents ----------
 class AgentCreate(BaseModel):
+    board_id:int
     name: str
     description: Optional[str] = ""
     tasks: Optional[List[str]] = []
@@ -12,6 +26,7 @@ class AgentCreate(BaseModel):
 
 class AgentOut(BaseModel):
     id: int
+    board_id: int          
     name: str
     description: str
     tasks: List[str]
@@ -28,6 +43,7 @@ class ExpectedOutputUpdate(BaseModel):
 
 # ---------- Chat ----------
 class ChatRequest(BaseModel):
+    board_id:int
     message: str
     session_id: Optional[str] = None  # optional for first message
 
@@ -43,6 +59,7 @@ class KBCreate(BaseModel):
 
 class KBOut(BaseModel):
     id: int
+    board_id: int          
     title: str
     content: str
     tags: List[str]
