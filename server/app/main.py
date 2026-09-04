@@ -1,17 +1,16 @@
 import os
+import re
+import asyncio
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-import uuid
-import time
-import random
 
 from .database import Base, engine, get_db
 from .models import AgentRow, Board, KnowledgeEntry, Memory
 from .schemas import AgentCreate, AgentOut, ChatRequest, ChatResponse, KBCreate, KBOut, ExpectedOutputUpdate, BoardCreate, BoardOut
 from .agents_service import get_agent_instance, refresh_registry
-from .crew_runner import run_chat_with_search
+from .crew_runner import run_chat_with_search, run_synthesis
 from .kb_service import list_kb, add_kb
 from app.vector_store import vector_store
 
@@ -145,14 +144,6 @@ def delete_agent(agent_id: int, db: Session = Depends(get_db)):
     return None  # 204 No Content
 
 # --------- Chat Endpoints ---------
-@app.post("/agents/{agent_id}/chat", response_model=ChatResponse)
-def chat_with_agent(agent_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
-    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
-    if not row:
-        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
-    result = run_chat_with_search(db, agent_id, payload.message, use_search=True)
-    return ChatResponse(**result)
-
 @app.post("/crew-chat")
 def crew_chat(payload: ChatRequest, db: Session = Depends(get_db)):
     session_id = payload.session_id or str(uuid.uuid4())
@@ -176,20 +167,6 @@ def crew_chat(payload: ChatRequest, db: Session = Depends(get_db)):
         messages.append({"sender": sender, "text": text})
     return {"session_id": session_id, "messages": messages}
 
-@app.get("/agents/{agent_id}/history")
-def get_chat_history(agent_id: int, db: Session = Depends(get_db)):
-    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
-    if not row:
-        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
-    history = vector_store.get_texts(agent_id)
-    return {"history": history}
-
-@app.get("/global-context")
-def get_global_context():
-    global_texts = vector_store.get_texts("global")
-    return {"global_texts": global_texts}
-
-# --------- Knowledge Base Endpoints ---------
 # --------- Knowledge Base Endpoints ---------
 @app.get("/knowledge", response_model=list[KBOut])
 def list_knowledge(board_id: int, db: Session = Depends(get_db)):
