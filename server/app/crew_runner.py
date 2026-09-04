@@ -5,6 +5,8 @@ from crewai import Crew, Task, Process
 from sqlalchemy.orm import Session
 from .agents_service import get_agent_instance
 from .vector_store import vector_store
+from .agents_service import _llm
+
 
 # Default fallback prompt if agent has no custom expected_output
 DEFAULT_EXPECTED_OUTPUT = (
@@ -108,3 +110,9 @@ def run_chat_with_search(
         "reply": reply_text,
         "source_percent": {"internal": internal_pct, "internet": internet_pct}
     }
+
+def run_synthesis(prompt: str) -> str:
+    """One-off LLM call for combining advisor responses — no persona, no CrewAI Agent needed."""
+    llm = _llm()
+    response = llm.invoke(prompt)
+    return response.content if hasattr(response, "content") else str(response)
