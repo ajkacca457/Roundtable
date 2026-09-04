@@ -8,7 +8,7 @@ import time
 import random
 
 from .database import Base, engine, get_db
-from .models import AgentRow,Board
+from .models import AgentRow, Board, KnowledgeEntry, Memory
 from .schemas import AgentCreate, AgentOut, ChatRequest, ChatResponse, KBCreate, KBOut, ExpectedOutputUpdate, BoardCreate, BoardOut
 from .agents_service import get_agent_instance, refresh_registry
 from .crew_runner import run_chat_with_search
@@ -58,11 +58,12 @@ def delete_board(board_id: int, db: Session = Depends(get_db)):
 
 # --------- Agents Endpoints ---------
 @app.get("/agents", response_model=list[AgentOut])
-def list_agents(db: Session = Depends(get_db)):
-    rows = db.query(AgentRow).order_by(AgentRow.id.desc()).all()
+def list_agents(board_id: int, db: Session = Depends(get_db)):
+    rows = db.query(AgentRow).filter(AgentRow.board_id == board_id).order_by(AgentRow.id.desc()).all()
     return [
         AgentOut(
             id=r.id,
+            board_id=r.board_id,
             name=r.name,
             description=r.description,
             tasks=[t.strip() for t in (r.tasks or "").split(",") if t.strip()],
@@ -77,6 +78,7 @@ def list_agents(db: Session = Depends(get_db)):
 def create_agent(payload: AgentCreate, db: Session = Depends(get_db)):
     tasks_str = ",".join(payload.tasks or [])
     row = AgentRow(
+        board_id=payload.board_id,
         name=payload.name,
         description=payload.description or "",
         tasks=tasks_str,
@@ -90,6 +92,7 @@ def create_agent(payload: AgentCreate, db: Session = Depends(get_db)):
     refresh_registry()
     return AgentOut(
         id=row.id,
+        board_id=row.board_id,
         name=row.name,
         description=row.description,
         tasks=payload.tasks or [],
@@ -105,6 +108,7 @@ def get_agent(agent_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Agent not found")
     return AgentOut(
         id=r.id,
+        board_id=r.board_id,
         name=r.name,
         description=r.description,
         tasks=[t.strip() for t in (r.tasks or "").split(",") if t.strip()],
@@ -186,13 +190,31 @@ def get_global_context():
     return {"global_texts": global_texts}
 
 # --------- Knowledge Base Endpoints ---------
-@app.get("/knowledge")
-def list_knowledge_files():
-    APP_FOLDER = os.path.dirname(__file__)
-    DOCS_FOLDER = os.path.join(APP_FOLDER, "docs")
-    json_files = [f for f in os.listdir(APP_FOLDER) if f.endswith(".json")]
-    docx_files = [f for f in os.listdir(DOCS_FOLDER) if f.endswith(".docx")] if os.path.exists(DOCS_FOLDER) else []
-    return {"json_files": json_files, "docx_files": docx_files}
+# --------- Knowledge Base Endpoints ---------
+@app.get("/knowledge", response_model=list[KBOut])
+def list_knowledge(board_id: int, db: Session = Depends(get_db)):
+    rows = list_kb(db, board_id)
+    return [
+        KBOut(
+            id=r.id,
+            board_id=r.board_id,
+            title=r.title,
+            content=r.content,
+            tags=[t.strip() for t in (r.tags or "").split(",") if t.strip()]
+        )
+        for r in rows
+    ]
+
+@app.post("/knowledge", response_model=KBOut)
+def create_knowledge(payload: KBCreate, board_id: int, db: Session = Depends(get_db)):
+    entry = add_kb(db, board_id, payload.title, payload.content, payload.tags or [])
+    return KBOut(
+        id=entry.id,
+        board_id=entry.board_id,
+        title=entry.title,
+        content=entry.content,
+        tags=[t.strip() for t in (entry.tags or "").split(",") if t.strip()]
+    )
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

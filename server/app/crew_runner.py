@@ -40,6 +40,7 @@ def search_internet(query: str, top_k: int = 3) -> list[str]:
 def run_chat_with_search(
     db: Session,
     agent_id: int,
+    board_id: int,
     user_message: str,
     use_search: bool = True,
     top_history: int = 5,
@@ -59,12 +60,8 @@ def run_chat_with_search(
     expected_output = expected_output or DEFAULT_EXPECTED_OUTPUT
 
     # 1️⃣ Retrieve relevant previous chats
-    relevant_history = vector_store.query(agent_id, user_message, top_k=top_history)
+    relevant_history = vector_store.query(board_id, user_message, top_k=top_history)
     history_text = "\n".join(relevant_history) if relevant_history else ""
-
-    # 2️⃣ Retrieve relevant global context
-    global_relevant = vector_store.query("global", user_message, top_k=top_global)
-    global_text = "\n".join(global_relevant) if global_relevant else ""
 
     # 3️⃣ Fetch external knowledge
     external_knowledge = search_internet(user_message, top_k=3) if use_search else []
@@ -73,8 +70,6 @@ def run_chat_with_search(
     context_parts = []
     if history_text:
         context_parts.append(f"Previous chats:\n{history_text}")
-    if global_text:
-        context_parts.append(f"Global context:\n{global_text}")
     context_parts.append(f"User query: {user_message}")
     context_parts.append("Internal Knowledge: Use your tasks, goal, and backstory.")
     if external_knowledge:
@@ -107,7 +102,7 @@ def run_chat_with_search(
         internal_pct, internet_pct = int(match.group(1)), int(match.group(2))
 
     # 8️⃣ Store new chat in vector store
-    vector_store.add_texts(agent_id, [user_message, reply_text])
+    vector_store.add_texts(board_id, [reply_text])
 
     return {
         "reply": reply_text,
