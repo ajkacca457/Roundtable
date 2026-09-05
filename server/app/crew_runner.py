@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from .agents_service import get_agent_instance
 from .vector_store import vector_store
 from .agents_service import _llm
+from .models import KnowledgeEntry
 
 
 # Default fallback prompt if agent has no custom expected_output
@@ -69,9 +70,14 @@ def run_chat_with_search(
     external_knowledge = search_internet(user_message, top_k=3) if use_search else []
 
     # 4️⃣ Build context
+    knowledge_entries = db.query(KnowledgeEntry).filter(KnowledgeEntry.board_id == board_id).all()
+    knowledge_text = "\n".join(f"{k.title}: {k.content}" for k in knowledge_entries)
+
     context_parts = []
     if history_text:
         context_parts.append(f"Previous chats:\n{history_text}")
+    if knowledge_text:
+        context_parts.append(f"Board knowledge:\n{knowledge_text}")
     context_parts.append(f"User query: {user_message}")
     context_parts.append("Internal Knowledge: Use your tasks, goal, and backstory.")
     if external_knowledge:
@@ -104,7 +110,7 @@ def run_chat_with_search(
         internal_pct, internet_pct = int(match.group(1)), int(match.group(2))
 
     # 8️⃣ Store new chat in vector store
-    vector_store.add_texts(board_id, [reply_text])
+    vector_store.add_texts(board_id, [f"Agent: {reply_text}"])
 
     return {
         "reply": reply_text,
