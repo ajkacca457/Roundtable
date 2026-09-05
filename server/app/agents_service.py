@@ -26,7 +26,7 @@ def _llm():
         )
     elif provider == "groq":
         return ChatOpenAI(
-            model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
             temperature=float(os.getenv("LLM_TEMPERATURE", 0.2)),
             api_key=os.getenv("GROQ_API_KEY"),
             base_url="https://api.groq.com/openai/v1",
