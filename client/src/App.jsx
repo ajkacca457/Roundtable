@@ -1,9 +1,8 @@
-import { useState } from "react";
 import "./App.css";
+import BoardList from "./pages/BoardList";
 import Dashboard from "./pages/Dashboard";
 import AgentGenerator from "./pages/AgentGenerator";
 import KnowledgeBase from "./pages/KnowledgeBase";
-import AgentChat from "./pages/AgentChat";
 import CrewChatPage from "./pages/CrewChat";
 import {
   createBrowserRouter,
@@ -14,19 +13,21 @@ import { MainLayout } from "./layouts/MainLayout";
 
 const router = createBrowserRouter([
   {
-    path:"/",
-    element: <Navigate to="/dashboard" replace />
-
+    path: "/",
+    element: <Navigate to="/boards" replace />,
   },
   {
-    path: "/dashboard",
+    path: "/boards",
+    element: <BoardList />,
+  },
+  {
+    path: "/boards/:boardId",
     element: <MainLayout />,
     children: [
       { index: true, element: <Dashboard /> },
-      { path:"agents", element: <AgentGenerator /> },
-      { path:"agents/:id", element: <AgentChat /> },
-      { path:"crew-chat", element: <CrewChatPage /> },
-      { path:"knowledge", element: <KnowledgeBase /> }
+      { path: "agents", element: <AgentGenerator /> },
+      { path: "crew-chat", element: <CrewChatPage /> },
+      { path: "knowledge", element: <KnowledgeBase /> },
     ],
   },
 ]);
