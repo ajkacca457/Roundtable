@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { API_URL } from "../utils/env.js";
 
 const Dashboard = () => {
+  const { boardId } = useParams();
   const [agents, setAgents] = useState([]);
   const [knowledge, setKnowledge] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,61 +11,55 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const agentsRes = await fetch(`${API_URL}/agents`, {
-          headers: { "ngrok-skip-browser-warning": "1" },
-        });
+        const agentsRes = await fetch(`${API_URL}/agents?board_id=${boardId}`);
         const agentsData = await agentsRes.json();
 
-        const kbRes = await fetch(`${API_URL}/knowledge`, {
-          headers: { "ngrok-skip-browser-warning": "1" },
-        });
+        const kbRes = await fetch(`${API_URL}/knowledge?board_id=${boardId}`);
         const kbData = await kbRes.json();
 
         setAgents(agentsData);
         setKnowledge(kbData);
-        setLoading(false);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [boardId]);
 
   if (loading) return <p>Loading dashboard...</p>;
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="stat bg-white shadow rounded-xl p-4">
-          <div className="stat-title text-gray-500">Total Agents</div>
+        <div className="stat bg-base-100 border border-base-300 rounded p-4">
+          <div className="stat-title text-base-content/60">Total Agents</div>
           <div className="stat-value text-primary">{agents.length}</div>
         </div>
 
-        <div className="stat bg-white shadow rounded-xl p-4">
-          <div className="stat-title text-gray-500">Total Tasks</div>
-          <div className="stat-value text-secondary">
+        <div className="stat bg-base-100 border border-base-300 rounded p-4">
+          <div className="stat-title text-base-content/60">Total Tasks</div>
+          <div className="stat-value text-accent">
             {agents.reduce((sum, a) => sum + (a.tasks?.length || 0), 0)}
           </div>
         </div>
 
-        <div className="stat bg-white shadow rounded-xl p-4">
-          <div className="stat-title text-gray-500">Knowledge Items</div>
-          <div className="stat-value text-accent">{knowledge.length}</div>
+        <div className="stat bg-base-100 border border-base-300 rounded p-4">
+          <div className="stat-title text-base-content/60">Knowledge Items</div>
+          <div className="stat-value text-secondary">{knowledge.length}</div>
         </div>
       </div>
 
-      {/* Agents Table */}
-      <div className="bg-white shadow rounded-xl p-6">
-        <h2 className="text-lg font-bold mb-4">Agents Overview</h2>
+      <div className="bg-base-100 border border-base-300 rounded p-6">
+        <h2 className="text-lg font-semibold mb-4">Agents overview</h2>
         <div className="overflow-x-auto">
           <table className="table w-full">
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Tasks Assigned</th>
+                <th>Tasks assigned</th>
                 <th>Goal</th>
                 <th>Backstory</th>
               </tr>

@@ -52,25 +52,34 @@ const BoardList = () => {
     }
   };
 
-  if (loading) return <p className="p-6">Loading boards...</p>;
+  if (loading) return <p className="p-10 font-sans">Loading boards...</p>;
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-8">
-      <h1 className="text-2xl font-bold">Your boards</h1>
+    <div className="min-h-screen bg-base-100">
+      <div className="max-w-2xl mx-auto px-6 py-16">
+        <h1 className="font-display text-3xl text-base-content mb-1">Your boards</h1>
+        <p className="text-base-content/60 mb-10">
+          Each board is its own advisory panel — agents, knowledge, and memory stay within it.
+        </p>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {boards.map((board) => (
-          <div
-            key={board.id}
-            className="card bg-base-100 shadow border border-base-300 cursor-pointer hover:shadow-md transition"
-            onClick={() => navigate(`/boards/${board.id}`)}
-          >
-            <div className="card-body">
-              <h2 className="card-title">{board.name}</h2>
-              <p className="text-gray-500">{board.description}</p>
-              <div className="card-actions justify-end">
+        {boards.length > 0 && (
+          <ul className="mb-12 border-t border-base-300">
+            {boards.map((board) => (
+              <li
+                key={board.id}
+                className="group flex items-center justify-between py-5 border-b border-base-300 cursor-pointer"
+                onClick={() => navigate(`/boards/${board.id}`)}
+              >
+                <div>
+                  <h2 className="font-display text-xl text-base-content group-hover:text-primary transition-colors">
+                    {board.name}
+                  </h2>
+                  {board.description && (
+                    <p className="text-base-content/60 text-sm mt-1">{board.description}</p>
+                  )}
+                </div>
                 <button
-                  className="btn btn-sm btn-error"
+                  className="text-sm text-base-content/40 hover:text-error transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDelete(board.id);
@@ -78,35 +87,29 @@ const BoardList = () => {
                 >
                   Delete
                 </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <div className="card bg-base-100 shadow-lg border border-base-300">
-        <div className="card-body">
-          <h2 className="card-title">Create a new board</h2>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <input
-              type="text"
-              placeholder="Board name (e.g. Football Team)"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="input input-bordered w-full"
-              required
-            />
-            <textarea
-              placeholder="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="textarea textarea-bordered w-full"
-            />
-            <div className="flex justify-end">
-              <button className="btn btn-primary">Create board</button>
-            </div>
-          </form>
-        </div>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <h2 className="font-display text-lg text-base-content">Create a new board</h2>
+          <input
+            type="text"
+            placeholder="Board name (e.g. Football Team)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="input input-bordered w-full bg-base-100"
+            required
+          />
+          <textarea
+            placeholder="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="textarea textarea-bordered w-full bg-base-100"
+          />
+          <button className="btn btn-primary">Create board</button>
+        </form>
       </div>
     </div>
   );
