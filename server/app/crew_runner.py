@@ -3,9 +3,8 @@ import re
 import requests
 from crewai import Crew, Task, Process
 from sqlalchemy.orm import Session
-from .agents_service import get_agent_instance
+from .agents_service import get_agent_instance, _llm
 from .vector_store import vector_store
-from .agents_service import _llm
 from .models import KnowledgeEntry
 
 
@@ -51,10 +50,10 @@ def run_chat_with_search(
 ) -> dict:
     """
     Run a chat with an agent using:
-    1️⃣ Relevant previous chat history from vector store (agent-specific)
-    2️⃣ Relevant global context
-    3️⃣ Optional Google CSE search
-    Stores new chats in vector store for future context.
+    1. Relevant previous chat history from vector store (board-scoped)
+    2. Board's uploaded knowledge base
+    3. Optional Google CSE search
+    Stores the agent's reply in vector store for future context.
     Returns:
       - 'reply': agent response
       - 'source_percent': approximate percentage from internal vs internet
@@ -83,8 +82,6 @@ def run_chat_with_search(
     if external_knowledge:
         context_parts.append("External Knowledge (from internet search):\n" + "\n".join(external_knowledge))
     context = "\n\n".join(context_parts)
-
-    print(f"[DEBUG] Agent ID {agent_id} expected_output:\n{expected_output}\n")
 
     # 5️⃣ Create CrewAI task
     task = Task(
