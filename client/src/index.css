@@ -1,2 +1,39 @@
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap");
 @import "tailwindcss";
-@plugin "daisyui"
+
+@plugin "daisyui/theme" {
+  name: "roundtable";
+  default: true;
+  color-scheme: light;
+  --color-base-100: #F5F3EE;
+  --color-base-200: #EDE9DC;
+  --color-base-300: #DED7C4;
+  --color-base-content: #23241F;
+  --color-primary: #A9822E;
+  --color-primary-content: #FFFFFF;
+  --color-secondary: #1B2A2F;
+  --color-secondary-content: #F5F3EE;
+  --color-accent: #56684A;
+  --color-accent-content: #FFFFFF;
+  --color-neutral: #1B2A2F;
+  --color-neutral-content: #F5F3EE;
+  --color-error: #B23A2E;
+  --color-error-content: #FFFFFF;
+  --radius-box: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-selector: 0.25rem;
+}
+
+@theme {
+  --font-sans: "IBM Plex Sans", sans-serif;
+  --font-display: "Source Serif 4", serif;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
