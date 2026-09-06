@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import AgentCard from "../components/AgentCard";
 import { API_URL } from "../utils/env.js";
 
 const AgentGenerator = () => {
+  const { boardId } = useParams();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newAgent, setNewAgent] = useState({
@@ -11,49 +13,45 @@ const AgentGenerator = () => {
     tasks: "",
     goal: "",
     backstory: "",
-    expected_output: "", // 👈 new
+    expected_output: "",
   });
 
-  // Fetch agents on mount
-  useEffect(() => {
-    fetch(`${API_URL}/agents`, {
-      headers: { "ngrok-skip-browser-warning": "1" },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setAgents(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch agents:", err);
-        setLoading(false);
-      });
-  }, []);
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch(`${API_URL}/agents?board_id=${boardId}`);
+      const data = await res.json();
+      setAgents(data);
+    } catch (err) {
+      console.error("Failed to fetch agents:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Create new agent
+  useEffect(() => {
+    fetchAgents();
+  }, [boardId]);
+
   const handleAddAgent = async (e) => {
     e.preventDefault();
     if (!newAgent.name.trim()) return;
 
     const payload = {
+      board_id: Number(boardId),
       name: newAgent.name,
       description: newAgent.description,
-      tasks: newAgent.tasks.split(",").map((t) => t.trim()),
+      tasks: newAgent.tasks.split(",").map((t) => t.trim()).filter(Boolean),
       goal: newAgent.goal,
       backstory: newAgent.backstory,
-      expected_output: newAgent.expected_output, // 👈 include in payload
+      expected_output: newAgent.expected_output,
     };
 
     try {
       const res = await fetch(`${API_URL}/agents`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "1",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const createdAgent = await res.json();
       setAgents((prev) => [...prev, createdAgent]);
       setNewAgent({
@@ -62,20 +60,16 @@ const AgentGenerator = () => {
         tasks: "",
         goal: "",
         backstory: "",
-        expected_output: "", // 👈 reset
+        expected_output: "",
       });
     } catch (err) {
       console.error("Error creating agent:", err);
     }
   };
 
-  // Delete agent
   const handleDeleteAgent = async (id) => {
     try {
-      await fetch(`${API_URL}/agents/${id}`, {
-        method: "DELETE",
-        headers: { "ngrok-skip-browser-warning": "1" },
-      });
+      await fetch(`${API_URL}/agents/${id}`, { method: "DELETE" });
       setAgents((prev) => prev.filter((agent) => agent.id !== id));
     } catch (err) {
       console.error("Error deleting agent:", err);
@@ -83,10 +77,9 @@ const AgentGenerator = () => {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Agent Management</h1>
+    <div>
+      <h1 className="font-display text-2xl text-base-content mb-6">Advisors on this board</h1>
 
-      {/* Agent List */}
       {loading ? (
         <p>Loading agents...</p>
       ) : (
@@ -97,55 +90,52 @@ const AgentGenerator = () => {
         </div>
       )}
 
-      {/* Create New Agent Form */}
-      <div className="card bg-base-100 shadow-lg border border-base-300">
-        <div className="card-body">
-          <h2 className="card-title">Create New Agent</h2>
-          <form onSubmit={handleAddAgent} className="space-y-4">
-            <input
-              type="text"
-              placeholder="Agent Name"
-              value={newAgent.name}
-              onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
-              className="input input-bordered w-full"
-              required
-            />
-            <textarea
-              placeholder="Description"
-              value={newAgent.description}
-              onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })}
-              className="textarea textarea-bordered w-full"
-            />
-            <textarea
-              placeholder="Goal"
-              value={newAgent.goal}
-              onChange={(e) => setNewAgent({ ...newAgent, goal: e.target.value })}
-              className="textarea textarea-bordered w-full"
-            />
-            <textarea
-              placeholder="Backstory"
-              value={newAgent.backstory}
-              onChange={(e) => setNewAgent({ ...newAgent, backstory: e.target.value })}
-              className="textarea textarea-bordered w-full"
-            />
-            <textarea
-              placeholder="Expected Output / Custom Prompt"
-              value={newAgent.expected_output} // 👈 new
-              onChange={(e) => setNewAgent({ ...newAgent, expected_output: e.target.value })} // 👈 new
-              className="textarea textarea-bordered w-full"
-            />
-            <input
-              type="text"
-              placeholder="Tasks (comma separated)"
-              value={newAgent.tasks}
-              onChange={(e) => setNewAgent({ ...newAgent, tasks: e.target.value })}
-              className="input input-bordered w-full"
-            />
-            <div className="flex justify-end">
-              <button className="btn btn-success">Add Agent</button>
-            </div>
-          </form>
-        </div>
+      <div className="bg-base-100 border border-base-300 rounded p-6">
+        <h2 className="font-display text-lg mb-4">Add a new advisor</h2>
+        <form onSubmit={handleAddAgent} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Advisor name (e.g. Head Coach)"
+            value={newAgent.name}
+            onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
+            className="input input-bordered w-full"
+            required
+          />
+          <textarea
+            placeholder="Description"
+            value={newAgent.description}
+            onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })}
+            className="textarea textarea-bordered w-full"
+          />
+          <textarea
+            placeholder="Goal"
+            value={newAgent.goal}
+            onChange={(e) => setNewAgent({ ...newAgent, goal: e.target.value })}
+            className="textarea textarea-bordered w-full"
+          />
+          <textarea
+            placeholder="Backstory"
+            value={newAgent.backstory}
+            onChange={(e) => setNewAgent({ ...newAgent, backstory: e.target.value })}
+            className="textarea textarea-bordered w-full"
+          />
+          <textarea
+            placeholder="Expected output / custom prompt"
+            value={newAgent.expected_output}
+            onChange={(e) => setNewAgent({ ...newAgent, expected_output: e.target.value })}
+            className="textarea textarea-bordered w-full"
+          />
+          <input
+            type="text"
+            placeholder="Tasks (comma separated)"
+            value={newAgent.tasks}
+            onChange={(e) => setNewAgent({ ...newAgent, tasks: e.target.value })}
+            className="input input-bordered w-full"
+          />
+          <div className="flex justify-end">
+            <button className="btn btn-primary">Add advisor</button>
+          </div>
+        </form>
       </div>
     </div>
   );

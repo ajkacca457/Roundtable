@@ -1,8 +1,7 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 const AgentCard = ({ agent, onDelete }) => {
-  console.log("Rendering AgentCard for agent:", agent);
+  const { boardId } = useParams();
 
   return (
     <div className="card bg-base-100 shadow-lg border border-base-300 hover:shadow-xl transition-shadow duration-200">
@@ -46,7 +45,7 @@ const AgentCard = ({ agent, onDelete }) => {
 
         <div className="card-actions justify-between mt-4">
           <Link
-            to={`/dashboard/agents/${agent.id}`}
+            to={`/boards/${boardId}/crew-chat`}
             className="btn btn-primary btn-sm"
           >
             Chat
