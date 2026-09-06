@@ -10,12 +10,13 @@ from .models import KnowledgeEntry
 
 # Default fallback prompt if agent has no custom expected_output
 DEFAULT_EXPECTED_OUTPUT = (
-    "Engage the user in a natural, interactive conversation. "
-    "Ask probing questions to understand their goals, challenges, and context. "
-    "Generate standalone insights based on internal knowledge, global context, and relevant external sources. "
-    "Encourage the user to think creatively and build upon their own ideas. "
-    "Reference previous team discussions and documents where relevant. "
-    "Do not provide a single final answer; focus on guiding exploration, uncovering assumptions, and facilitating actionable thinking."
+    "Give a short, opinionated response, the way a real advisor speaks in a live discussion, not a "
+    "written report. Lead with your actual view or recommendation — don't list considerations or ask a "
+    "wall of questions. Default to 2-4 sentences. If the question genuinely needs more, you may go up to "
+    "one paragraph, but never longer — if there's more to say than that, end with a short offer like "
+    "'Want me to go deeper on this?' instead of writing it all out. Only ask one brief clarifying question "
+    "if you genuinely need an answer before giving your take. No headers, no tables, no bullet-point "
+    "frameworks."
 )
 
 def search_internet(query: str, top_k: int = 3) -> list[str]:
@@ -107,7 +108,7 @@ def run_chat_with_search(
         internal_pct, internet_pct = int(match.group(1)), int(match.group(2))
 
     # 8️⃣ Store new chat in vector store
-    vector_store.add_texts(board_id, [f"Agent: {reply_text}"])
+    vector_store.add_texts(board_id, [f"{agent.role}: {reply_text}"])
 
     return {
         "reply": reply_text,
