@@ -56,6 +56,22 @@ const CrewChatPage = () => {
     setInput("");
   };
 
+  const synthesize = async () => {
+    if (sending) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${API_URL}/boards/${boardId}/synthesize`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      setMessages((prev) => [...prev, data]);
+    } catch (err) {
+      console.error("Synthesis error:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -63,15 +79,20 @@ const CrewChatPage = () => {
           const isUser = msg.sender === "User";
           const isSynthesis = msg.sender === "Synthesis";
           return (
-            <div key={idx} className={`chat ${isUser ? "chat-end" : "chat-start"}`}>
-              <div className="chat-header text-xs opacity-60 mb-1">{msg.sender}</div>
+            <div
+              key={idx}
+              className={`chat ${isUser ? "chat-end" : "chat-start"}`}
+            >
+              <div className="chat-header text-xs opacity-60 mb-1">
+                {msg.sender}
+              </div>
               <div
                 className={`chat-bubble whitespace-pre-wrap ${
                   isUser
                     ? "chat-bubble-primary"
                     : isSynthesis
-                    ? "bg-accent text-accent-content border-2 border-accent"
-                    : "bg-base-100 border border-base-300 text-base-content"
+                      ? "bg-accent text-accent-content border-2 border-accent"
+                      : "bg-base-100 border border-base-300 text-base-content"
                 }`}
               >
                 {msg.text}
@@ -98,11 +119,22 @@ const CrewChatPage = () => {
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           disabled={sending}
         />
-        <button className="btn btn-primary" onClick={sendMessage} disabled={sending}>
+        <button
+          className="btn btn-primary"
+          onClick={sendMessage}
+          disabled={sending}
+        >
           Send
         </button>
         <button className="btn btn-ghost" onClick={clearChat}>
           Clear
+        </button>
+        <button
+          className="btn btn-accent"
+          onClick={synthesize}
+          disabled={sending}
+        >
+          Synthesize
         </button>
       </div>
     </div>

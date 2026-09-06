@@ -189,22 +189,32 @@ async def crew_chat(board_id: int, payload: ChatRequest, db: Session = Depends(g
     advisor_messages = [
         {"sender": a.name, "text": r["reply"]} for a, r in zip(agents, results)
     ]
-
-    synthesis_prompt = (
-        "Here are perspectives from different board advisors on this question:\n\n"
-        + "\n\n".join(f"{a.name}: {r['reply']}" for a, r in zip(agents, results))
-        + "\n\nSynthesize these into one clear recommendation for the user, noting any disagreement."
-    )
-    synthesis_reply = await asyncio.to_thread(run_synthesis, synthesis_prompt)
-    vector_store.add_texts(board_id, [f"Synthesis: {synthesis_reply}"])
-
     return {
         "messages": (
             [{"sender": "User", "text": payload.message}]
             + advisor_messages
-            + [{"sender": "Synthesis", "text": synthesis_reply}]
         )
     }
+
+@app.post("/boards/{board_id}/synthesize")
+async def synthesize_board(board_id: int, db: Session = Depends(get_db)):
+    board = db.query(Board).filter(Board.id == board_id).first()
+    if not board:
+        raise HTTPException(404, "Board not found")
+
+    recent = vector_store.get_texts(board_id, limit=5)
+    if not recent:
+        return {"sender": "Synthesis", "text": "Not enough discussion yet to synthesize."}
+
+    synthesis_prompt = (
+        "Here is the recent discussion on this board:\n\n"
+        + "\n".join(recent)
+        + "\n\nSynthesize this into one clear recommendation, noting any disagreement among advisors."
+    )
+    synthesis_reply = await asyncio.to_thread(run_synthesis, synthesis_prompt)
+    vector_store.add_texts(board_id, [f"Synthesis: {synthesis_reply}"])
+
+    return {"sender": "Synthesis", "text": synthesis_reply}
 
 @app.get("/boards/{board_id}/history")
 def get_board_history(board_id: int, db: Session = Depends(get_db)):

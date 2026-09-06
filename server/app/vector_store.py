@@ -40,15 +40,25 @@ class ChatVectorStore:
         finally:
             db.close()
 
-    def get_texts(self, scope) -> List[str]:
+    def get_texts(self, scope, limit: int | None = None) -> List[str]:
         db: Session = SessionLocal()
         try:
-            rows = (
-                db.query(Memory)
-                .filter(Memory.board_id == scope)
-                .order_by(Memory.created_at.asc())
-                .all()
-            )
+            if limit:
+                rows = (
+                    db.query(Memory)
+                    .filter(Memory.board_id == scope)
+                    .order_by(Memory.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
+                rows = list(reversed(rows))
+            else:
+                rows = (
+                    db.query(Memory)
+                    .filter(Memory.board_id == scope)
+                    .order_by(Memory.created_at.asc())
+                    .all()
+                )
             return [f"{r.role}: {r.content}" for r in rows]
         finally:
             db.close()
