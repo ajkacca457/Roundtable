@@ -45,7 +45,7 @@ const AgentCard = ({ agent, onDelete }) => {
 
         <div className="card-actions justify-between mt-4">
           <Link
-            to={`/boards/${boardId}/crew-chat`}
+            to={`/boards/${boardId}/roundtable`}
             className="btn btn-primary btn-sm"
           >
             Chat
