@@ -26,7 +26,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: "agents", element: <AgentGenerator /> },
-      { path: "crew-chat", element: <CrewChatPage /> },
+      { path: "roundtable", element: <CrewChatPage /> },
       { path: "knowledge", element: <KnowledgeBase /> },
     ],
   },

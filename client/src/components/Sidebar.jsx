@@ -7,7 +7,7 @@ const Sidebar = () => {
   const links = [
     { name: "Dashboard", path: `/boards/${boardId}` },
     { name: "Agents", path: `/boards/${boardId}/agents` },
-    { name: "Crew Chat", path: `/boards/${boardId}/crew-chat` },
+    { name: "Roundtable", path: `/boards/${boardId}/roundtable` },
     { name: "Knowledge Base", path: `/boards/${boardId}/knowledge` },
   ];
 
