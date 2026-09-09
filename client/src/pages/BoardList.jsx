@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApiFetch } from "../hooks/useApiFetch";
+import { UserButton, useUser } from "@clerk/clerk-react";
 
 const BoardList = () => {
+  const { user } = useUser();
   const [boards, setBoards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -58,13 +60,18 @@ const BoardList = () => {
 
   return (
     <div className="min-h-screen bg-base-100">
+      <header className="w-full flex justify-end items-center gap-3 px-6 py-4">
+        {user && (
+          <span className="text-sm text-base-content/60">
+            {user.fullName || user.primaryEmailAddress?.emailAddress}
+          </span>
+        )}
+        <UserButton afterSignOutUrl="/boards" />
+      </header>
       <div className="max-w-2xl mx-auto px-6 py-16">
-        <h1 className="font-display text-3xl text-base-content mb-1">
-          Your boards
-        </h1>
+        <h1 className="font-display text-3xl text-base-content mb-1">Your boards</h1>
         <p className="text-base-content/60 mb-10">
-          Each board is its own advisory panel — agents, knowledge, and memory
-          stay within it.
+          Each board is its own advisory panel — agents, knowledge, and memory stay within it.
         </p>
 
         {boards.length > 0 && (
@@ -80,9 +87,7 @@ const BoardList = () => {
                     {board.name}
                   </h2>
                   {board.description && (
-                    <p className="text-base-content/60 text-sm mt-1">
-                      {board.description}
-                    </p>
+                    <p className="text-base-content/60 text-sm mt-1">{board.description}</p>
                   )}
                 </div>
                 <button
@@ -100,9 +105,7 @@ const BoardList = () => {
         )}
 
         <form onSubmit={handleCreate} className="space-y-4">
-          <h2 className="font-display text-lg text-base-content">
-            Create a new board
-          </h2>
+          <h2 className="font-display text-lg text-base-content">Create a new board</h2>
           <input
             type="text"
             placeholder="Board name (e.g. Football Team)"
