@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import AgentCard from "../components/AgentCard";
-import { API_URL } from "../utils/env.js";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const AgentGenerator = () => {
   const { boardId } = useParams();

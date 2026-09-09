@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { API_URL } from "../utils/env.js";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const KnowledgeBase = () => {
   const { boardId } = useParams();

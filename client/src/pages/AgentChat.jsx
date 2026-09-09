@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { API_URL } from "../utils/env.js";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const AgentChat = () => {
   const { id } = useParams(); // Agent ID from URL
