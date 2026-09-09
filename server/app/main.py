@@ -13,6 +13,7 @@ from .agents_service import get_agent_instance, refresh_registry
 from .crew_runner import run_chat_with_search, run_synthesis
 from .kb_service import list_kb, add_kb
 from app.vector_store import vector_store
+from .auth import get_current_user_id, get_owned_board
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -32,20 +33,20 @@ app.add_middleware(
 
 # --------- Board Endpoints ---------
 @app.get("/boards", response_model=list[BoardOut])
-def list_boards(db: Session = Depends(get_db)):
-    return db.query(Board).order_by(Board.id.desc()).all()
+def list_boards(db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    return db.query(Board).filter(Board.owner_id == user_id).order_by(Board.id.desc()).all()
 
 @app.post("/boards", response_model=BoardOut)
-def create_board(payload: BoardCreate, db: Session = Depends(get_db)):
-    board = Board(name=payload.name, description=payload.description or "")
+def create_board(payload: BoardCreate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    board = Board(owner_id=user_id, name=payload.name, description=payload.description or "")
     db.add(board)
     db.commit()
     db.refresh(board)
     return board
 
 @app.delete("/boards/{board_id}", status_code=204)
-def delete_board(board_id: int, db: Session = Depends(get_db)):
-    board = db.query(Board).filter(Board.id == board_id).first()
+def delete_board(board_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    board = db.query(Board).filter(Board.id == board_id, Board.owner_id == user_id).first()
     if not board:
         raise HTTPException(404, "Board not found")
     db.query(AgentRow).filter(AgentRow.board_id == board_id).delete()

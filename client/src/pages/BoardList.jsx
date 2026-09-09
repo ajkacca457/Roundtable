@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { useApiFetch } from "../hooks/useApiFetch";
 
 const BoardList = () => {
   const [boards, setBoards] = useState([]);
@@ -9,10 +8,11 @@ const BoardList = () => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const navigate = useNavigate();
+  const { apiFetch, isLoaded, isSignedIn } = useApiFetch();
 
   const fetchBoards = async () => {
     try {
-      const res = await fetch(`${API_URL}/boards`);
+      const res = await apiFetch("/boards");
       const data = await res.json();
       setBoards(data);
     } catch (err) {
@@ -23,17 +23,18 @@ const BoardList = () => {
   };
 
   useEffect(() => {
-    fetchBoards();
-  }, []);
+    if (isLoaded && isSignedIn) {
+      fetchBoards();
+    }
+  }, [isLoaded, isSignedIn]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
 
     try {
-      await fetch(`${API_URL}/boards`, {
+      await apiFetch("/boards", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description }),
       });
       setName("");
@@ -46,7 +47,7 @@ const BoardList = () => {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`${API_URL}/boards/${id}`, { method: "DELETE" });
+      await apiFetch(`/boards/${id}`, { method: "DELETE" });
       setBoards((prev) => prev.filter((b) => b.id !== id));
     } catch (err) {
       console.error("Error deleting board:", err);
@@ -58,9 +59,12 @@ const BoardList = () => {
   return (
     <div className="min-h-screen bg-base-100">
       <div className="max-w-2xl mx-auto px-6 py-16">
-        <h1 className="font-display text-3xl text-base-content mb-1">Your boards</h1>
+        <h1 className="font-display text-3xl text-base-content mb-1">
+          Your boards
+        </h1>
         <p className="text-base-content/60 mb-10">
-          Each board is its own advisory panel — agents, knowledge, and memory stay within it.
+          Each board is its own advisory panel — agents, knowledge, and memory
+          stay within it.
         </p>
 
         {boards.length > 0 && (
@@ -76,7 +80,9 @@ const BoardList = () => {
                     {board.name}
                   </h2>
                   {board.description && (
-                    <p className="text-base-content/60 text-sm mt-1">{board.description}</p>
+                    <p className="text-base-content/60 text-sm mt-1">
+                      {board.description}
+                    </p>
                   )}
                 </div>
                 <button
@@ -94,7 +100,9 @@ const BoardList = () => {
         )}
 
         <form onSubmit={handleCreate} className="space-y-4">
-          <h2 className="font-display text-lg text-base-content">Create a new board</h2>
+          <h2 className="font-display text-lg text-base-content">
+            Create a new board
+          </h2>
           <input
             type="text"
             placeholder="Board name (e.g. Football Team)"

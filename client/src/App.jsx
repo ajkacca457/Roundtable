@@ -10,6 +10,33 @@ import {
   Navigate,
 } from "react-router-dom";
 import { MainLayout } from "./layouts/MainLayout";
+import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
+
+function ProtectedLayout() {
+  return (
+    <>
+      <SignedIn>
+        <MainLayout />
+      </SignedIn>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+    </>
+  );
+}
+
+function ProtectedBoardList() {
+  return (
+    <>
+      <SignedIn>
+        <BoardList />
+      </SignedIn>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+    </>
+  );
+}
 
 const router = createBrowserRouter([
   {
@@ -18,11 +45,11 @@ const router = createBrowserRouter([
   },
   {
     path: "/boards",
-    element: <BoardList />,
+    element: <ProtectedBoardList />,
   },
   {
     path: "/boards/:boardId",
-    element: <MainLayout />,
+    element: <ProtectedLayout />,
     children: [
       { index: true, element: <Dashboard /> },
       { path: "agents", element: <AgentGenerator /> },

@@ -6,6 +6,7 @@ from .database import Base
 class Board(Base):
     __tablename__ = "boards"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    owner_id: Mapped[str] = mapped_column(String(255), index=True)
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[str] = mapped_column(DateTime, server_default=func.now())

@@ -1,10 +1,12 @@
+import { UserButton, useUser } from "@clerk/clerk-react";
+
 const Navbar = () => {
+  const { user } = useUser();
+
   return (
     <header className="w-full bg-white shadow-md flex justify-between items-center px-6 py-4 sticky top-0 z-10">
       {/* Left section: Page title or breadcrumbs */}
-      <div className="text-xl font-semibold text-gray-800">
-        Dashboard
-      </div>
+      <div className="text-xl font-semibold text-gray-800">Dashboard</div>
 
       {/* Right section: Search bar and user profile */}
       <div className="flex items-center space-x-4">
@@ -36,26 +38,13 @@ const Navbar = () => {
         </button>
 
         {/* User Avatar */}
-        <div className="dropdown dropdown-end">
-          <label tabIndex={0} className="btn btn-ghost btn-circle avatar">
-            <div className="w-10 rounded-full">
-              <img src="https://i.pravatar.cc/300" alt="User Avatar" />
-            </div>
-          </label>
-          <ul
-            tabIndex={0}
-            className="dropdown-content menu p-2 shadow bg-white rounded-box w-52 mt-4"
-          >
-            <li>
-              <a>Profile</a>
-            </li>
-            <li>
-              <a>Settings</a>
-            </li>
-            <li>
-              <a>Logout</a>
-            </li>
-          </ul>
+        <div className="flex items-center gap-3">
+          {user && (
+            <span className="hidden md:block text-sm text-gray-600">
+              {user.fullName || user.primaryEmailAddress?.emailAddress}
+            </span>
+          )}
+          <UserButton afterSignOutUrl="/boards" />
         </div>
       </div>
     </header>
