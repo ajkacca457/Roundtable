@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { useApiFetch } from "../hooks/useApiFetch";
 
 const CrewChatPage = () => {
   const { boardId } = useParams();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const { apiFetch, isLoaded, isSignedIn } = useApiFetch();
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+
     const loadHistory = async () => {
       try {
-        const res = await fetch(`${API_URL}/boards/${boardId}/history`);
+        const res = await apiFetch(`/boards/${boardId}/history`);
         const data = await res.json();
         const parsed = data.history.map((entry) => {
           const [sender, ...rest] = entry.split(": ");
@@ -25,7 +27,7 @@ const CrewChatPage = () => {
     };
 
     loadHistory();
-  }, [boardId]);
+  }, [boardId, isLoaded, isSignedIn]);
 
   const sendMessage = async () => {
     if (!input.trim() || sending) return;
@@ -36,9 +38,8 @@ const CrewChatPage = () => {
     setSending(true);
 
     try {
-      const res = await fetch(`${API_URL}/boards/${boardId}/chat`, {
+      const res = await apiFetch(`/boards/${boardId}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userText }),
       });
       const data = await res.json();
@@ -61,7 +62,7 @@ const CrewChatPage = () => {
     if (sending) return;
     setSending(true);
     try {
-      const res = await fetch(`${API_URL}/boards/${boardId}/synthesize`, {
+      const res = await apiFetch(`/boards/${boardId}/synthesize`, {
         method: "POST",
       });
       const data = await res.json();

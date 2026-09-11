@@ -13,7 +13,7 @@ from .agents_service import get_agent_instance, refresh_registry
 from .crew_runner import run_chat_with_search, run_synthesis
 from .kb_service import list_kb, add_kb
 from app.vector_store import vector_store
-from .auth import get_current_user_id, get_owned_board
+from .auth import get_current_user_id, get_owned_board, get_owned_agent
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -58,8 +58,9 @@ def delete_board(board_id: int, db: Session = Depends(get_db), user_id: str = De
 
 # --------- Agents Endpoints ---------
 @app.get("/agents", response_model=list[AgentOut])
-def list_agents(board_id: int, db: Session = Depends(get_db)):
-    rows = db.query(AgentRow).filter(AgentRow.board_id == board_id).order_by(AgentRow.id.desc()).all()
+def list_agents(board_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    get_owned_board(board_id, db, user_id)
+    rows = db.query(AgentRow).filter(AgentRow.board_id == board_id).order_by(AgentRow.id.desc()).all()    
     return [
         AgentOut(
             id=r.id,
@@ -74,8 +75,8 @@ def list_agents(board_id: int, db: Session = Depends(get_db)):
         for r in rows
     ]
 
-@app.post("/agents", response_model=AgentOut)
-def create_agent(payload: AgentCreate, db: Session = Depends(get_db)):
+def create_agent(payload: AgentCreate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    get_owned_board(payload.board_id, db, user_id)
     tasks_str = ",".join(payload.tasks or [])
     row = AgentRow(
         board_id=payload.board_id,
@@ -102,10 +103,8 @@ def create_agent(payload: AgentCreate, db: Session = Depends(get_db)):
     )
 
 @app.get("/agents/{agent_id}", response_model=AgentOut)
-def get_agent(agent_id: int, db: Session = Depends(get_db)):
-    r = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
-    if not r:
-        raise HTTPException(404, "Agent not found")
+def get_agent(agent_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    r = get_owned_agent(agent_id, db, user_id)
     return AgentOut(
         id=r.id,
         board_id=r.board_id,
@@ -118,27 +117,21 @@ def get_agent(agent_id: int, db: Session = Depends(get_db)):
     )
 
 @app.get("/agents/{agent_id}/expected_output")
-def get_expected_output(agent_id: int, db: Session = Depends(get_db)):
-    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
-    if not row:
-        raise HTTPException(404, "Agent not found")
+def get_expected_output(agent_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    row = get_owned_agent(agent_id, db, user_id)
     return {"expected_output": row.expected_output}
 
 @app.put("/agents/{agent_id}/expected_output")
-def update_expected_output(agent_id: int, payload: ExpectedOutputUpdate, db: Session = Depends(get_db)):
-    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
-    if not row:
-        raise HTTPException(404, "Agent not found")
+def update_expected_output(agent_id: int, payload: ExpectedOutputUpdate, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    row = get_owned_agent(agent_id, db, user_id)
     row.expected_output = payload.expected_output
     db.commit()
     db.refresh(row)
     return {"message": "Expected output updated successfully", "expected_output": row.expected_output}
 
 @app.delete("/agents/{agent_id}", status_code=204)
-def delete_agent(agent_id: int, db: Session = Depends(get_db)):
-    row = db.query(AgentRow).filter(AgentRow.id == agent_id).first()
-    if not row:
-        raise HTTPException(404, "Agent not found")
+def delete_agent(agent_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    row = get_owned_agent(agent_id, db, user_id)
     db.delete(row)
     db.commit()
     refresh_registry()
@@ -158,7 +151,8 @@ def _parse_mention(message: str, agents: list[AgentRow]):
     return None, message
 
 @app.post("/boards/{board_id}/chat")
-async def crew_chat(board_id: int, payload: ChatRequest, db: Session = Depends(get_db)):
+async def crew_chat(board_id: int, payload: ChatRequest, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    get_owned_board(board_id, db, user_id)
     agents = db.query(AgentRow).filter(AgentRow.board_id == board_id).all()
     if not agents:
         return {"messages": [{"sender": "System", "text": "This board has no agents yet."}]}
@@ -198,10 +192,8 @@ async def crew_chat(board_id: int, payload: ChatRequest, db: Session = Depends(g
     }
 
 @app.post("/boards/{board_id}/synthesize")
-async def synthesize_board(board_id: int, db: Session = Depends(get_db)):
-    board = db.query(Board).filter(Board.id == board_id).first()
-    if not board:
-        raise HTTPException(404, "Board not found")
+async def synthesize_board(board_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    get_owned_board(board_id, db, user_id)
 
     recent = vector_store.get_texts(board_id, limit=5)
     if not recent:
@@ -218,15 +210,14 @@ async def synthesize_board(board_id: int, db: Session = Depends(get_db)):
     return {"sender": "Synthesis", "text": synthesis_reply}
 
 @app.get("/boards/{board_id}/history")
-def get_board_history(board_id: int, db: Session = Depends(get_db)):
-    board = db.query(Board).filter(Board.id == board_id).first()
-    if not board:
-        raise HTTPException(404, "Board not found")
+def get_board_history(board_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    get_owned_board(board_id, db, user_id)
     return {"history": vector_store.get_texts(board_id)}
 
 # --------- Knowledge Base Endpoints ---------
 @app.get("/knowledge", response_model=list[KBOut])
-def list_knowledge(board_id: int, db: Session = Depends(get_db)):
+def list_knowledge(board_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    get_owned_board(board_id, db, user_id)
     rows = list_kb(db, board_id)
     return [
         KBOut(
@@ -240,7 +231,8 @@ def list_knowledge(board_id: int, db: Session = Depends(get_db)):
     ]
 
 @app.post("/knowledge", response_model=KBOut)
-def create_knowledge(payload: KBCreate, board_id: int, db: Session = Depends(get_db)):
+def create_knowledge(payload: KBCreate, board_id: int, db: Session = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    get_owned_board(board_id, db, user_id)
     entry = add_kb(db, board_id, payload.title, payload.content, payload.tags or [])
     return KBOut(
         id=entry.id,

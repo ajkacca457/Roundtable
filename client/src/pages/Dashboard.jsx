@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { useApiFetch } from "../hooks/useApiFetch";
 
 const Dashboard = () => {
   const { boardId } = useParams();
   const [agents, setAgents] = useState([]);
   const [knowledge, setKnowledge] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { apiFetch, isLoaded, isSignedIn } = useApiFetch();
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+
     const fetchData = async () => {
       try {
-        const agentsRes = await fetch(`${API_URL}/agents?board_id=${boardId}`);
+        const agentsRes = await apiFetch(`/agents?board_id=${boardId}`);
         const agentsData = await agentsRes.json();
 
-        const kbRes = await fetch(`${API_URL}/knowledge?board_id=${boardId}`);
+        const kbRes = await apiFetch(`/knowledge?board_id=${boardId}`);
         const kbData = await kbRes.json();
 
         setAgents(agentsData);
@@ -28,7 +30,7 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, [boardId]);
+  }, [boardId, isLoaded, isSignedIn]);
 
   if (loading) return <p>Loading dashboard...</p>;
 

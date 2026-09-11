@@ -42,3 +42,16 @@ def get_owned_board(board_id: int, db: Session, user_id: str) -> Board:
     if not board:
         raise HTTPException(404, "Board not found")
     return board
+
+
+def get_owned_agent(agent_id: int, db: Session, user_id: str):
+    from .models import AgentRow  # local import avoids circular import with models.py
+    agent = (
+        db.query(AgentRow)
+        .join(Board, Board.id == AgentRow.board_id)
+        .filter(AgentRow.id == agent_id, Board.owner_id == user_id)
+        .first()
+    )
+    if not agent:
+        raise HTTPException(404, "Agent not found")
+    return agent

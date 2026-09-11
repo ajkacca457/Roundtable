@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import AgentCard from "../components/AgentCard";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { useApiFetch } from "../hooks/useApiFetch";
 
 const AgentGenerator = () => {
   const { boardId } = useParams();
@@ -16,10 +15,11 @@ const AgentGenerator = () => {
     backstory: "",
     expected_output: "",
   });
+  const { apiFetch, isLoaded, isSignedIn } = useApiFetch();
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch(`${API_URL}/agents?board_id=${boardId}`);
+      const res = await apiFetch(`/agents?board_id=${boardId}`);
       const data = await res.json();
       setAgents(data);
     } catch (err) {
@@ -30,8 +30,10 @@ const AgentGenerator = () => {
   };
 
   useEffect(() => {
-    fetchAgents();
-  }, [boardId]);
+    if (isLoaded && isSignedIn) {
+      fetchAgents();
+    }
+  }, [boardId, isLoaded, isSignedIn]);
 
   const handleAddAgent = async (e) => {
     e.preventDefault();
@@ -41,16 +43,18 @@ const AgentGenerator = () => {
       board_id: Number(boardId),
       name: newAgent.name,
       description: newAgent.description,
-      tasks: newAgent.tasks.split(",").map((t) => t.trim()).filter(Boolean),
+      tasks: newAgent.tasks
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
       goal: newAgent.goal,
       backstory: newAgent.backstory,
       expected_output: newAgent.expected_output,
     };
 
     try {
-      const res = await fetch(`${API_URL}/agents`, {
+      const res = await apiFetch("/agents", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const createdAgent = await res.json();
@@ -70,7 +74,7 @@ const AgentGenerator = () => {
 
   const handleDeleteAgent = async (id) => {
     try {
-      await fetch(`${API_URL}/agents/${id}`, { method: "DELETE" });
+      await apiFetch(`/agents/${id}`, { method: "DELETE" });
       setAgents((prev) => prev.filter((agent) => agent.id !== id));
     } catch (err) {
       console.error("Error deleting agent:", err);
@@ -79,14 +83,20 @@ const AgentGenerator = () => {
 
   return (
     <div>
-      <h1 className="font-display text-2xl text-base-content mb-6">Advisors on this board</h1>
+      <h1 className="font-display text-2xl text-base-content mb-6">
+        Advisors on this board
+      </h1>
 
       {loading ? (
         <p>Loading agents...</p>
       ) : (
         <div className="grid md:grid-cols-2 gap-6 mb-10">
           {agents.map((agent) => (
-            <AgentCard key={agent.id} agent={agent} onDelete={handleDeleteAgent} />
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              onDelete={handleDeleteAgent}
+            />
           ))}
         </div>
       )}
@@ -105,7 +115,9 @@ const AgentGenerator = () => {
           <textarea
             placeholder="Description"
             value={newAgent.description}
-            onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })}
+            onChange={(e) =>
+              setNewAgent({ ...newAgent, description: e.target.value })
+            }
             className="textarea textarea-bordered w-full"
           />
           <textarea
@@ -117,20 +129,26 @@ const AgentGenerator = () => {
           <textarea
             placeholder="Backstory"
             value={newAgent.backstory}
-            onChange={(e) => setNewAgent({ ...newAgent, backstory: e.target.value })}
+            onChange={(e) =>
+              setNewAgent({ ...newAgent, backstory: e.target.value })
+            }
             className="textarea textarea-bordered w-full"
           />
           <textarea
             placeholder="Expected output / custom prompt"
             value={newAgent.expected_output}
-            onChange={(e) => setNewAgent({ ...newAgent, expected_output: e.target.value })}
+            onChange={(e) =>
+              setNewAgent({ ...newAgent, expected_output: e.target.value })
+            }
             className="textarea textarea-bordered w-full"
           />
           <input
             type="text"
             placeholder="Tasks (comma separated)"
             value={newAgent.tasks}
-            onChange={(e) => setNewAgent({ ...newAgent, tasks: e.target.value })}
+            onChange={(e) =>
+              setNewAgent({ ...newAgent, tasks: e.target.value })
+            }
             className="input input-bordered w-full"
           />
           <div className="flex justify-end">

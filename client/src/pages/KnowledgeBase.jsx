@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { useApiFetch } from "../hooks/useApiFetch";
 
 const KnowledgeBase = () => {
   const { boardId } = useParams();
@@ -10,10 +9,11 @@ const KnowledgeBase = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
+  const { apiFetch, isLoaded, isSignedIn } = useApiFetch();
 
   const fetchEntries = async () => {
     try {
-      const res = await fetch(`${API_URL}/knowledge?board_id=${boardId}`);
+      const res = await apiFetch(`/knowledge?board_id=${boardId}`);
       const data = await res.json();
       setEntries(data);
     } catch (err) {
@@ -24,8 +24,10 @@ const KnowledgeBase = () => {
   };
 
   useEffect(() => {
-    fetchEntries();
-  }, [boardId]);
+    if (isLoaded && isSignedIn) {
+      fetchEntries();
+    }
+  }, [boardId, isLoaded, isSignedIn]);
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -34,13 +36,15 @@ const KnowledgeBase = () => {
     const payload = {
       title,
       content,
-      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
     };
 
     try {
-      await fetch(`${API_URL}/knowledge?board_id=${boardId}`, {
+      await apiFetch(`/knowledge?board_id=${boardId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       setTitle("");
@@ -54,13 +58,16 @@ const KnowledgeBase = () => {
 
   return (
     <div>
-      <h1 className="font-display text-2xl text-base-content mb-6">Board knowledge</h1>
+      <h1 className="font-display text-2xl text-base-content mb-6">
+        Board knowledge
+      </h1>
 
       {loading ? (
         <p>Loading knowledge base...</p>
       ) : entries.length === 0 ? (
         <p className="text-base-content/60 mb-10">
-          No knowledge added yet. Add notes or policies below for advisors to draw on.
+          No knowledge added yet. Add notes or policies below for advisors to
+          draw on.
         </p>
       ) : (
         <ul className="mb-10 border-t border-base-300">
@@ -71,7 +78,9 @@ const KnowledgeBase = () => {
               {entry.tags.length > 0 && (
                 <div className="mt-2 flex gap-2">
                   {entry.tags.map((tag) => (
-                    <span key={tag} className="badge badge-outline">{tag}</span>
+                    <span key={tag} className="badge badge-outline">
+                      {tag}
+                    </span>
                   ))}
                 </div>
               )}
