@@ -24,7 +24,10 @@ app = FastAPI(title="CrewAI Backend", version="0.1.0")
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # adjust to frontend domain
+    allow_origins=[
+        "https://roundtable-mauve.vercel.app",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
